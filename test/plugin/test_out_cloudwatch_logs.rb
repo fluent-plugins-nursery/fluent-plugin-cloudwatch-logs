@@ -1,8 +1,9 @@
-require 'aws-sdk-core'
 require 'test_helper'
 require 'fileutils'
 
 class CloudwatchLogsOutputTest < Test::Unit::TestCase
+  include CloudwatchLogsTestHelper
+
   def setup
     Fluent::Test.setup
     require 'fluent/plugin/out_cloudwatch_logs'
@@ -13,8 +14,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   def teardown
     clear_log_group
     FileUtils.rm_f(sequence_token_file)
-  rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException
-    # pass
   end
   
 
@@ -34,6 +33,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   end
 
   def test_write
+    new_log_stream
+
     d = create_driver
     time = Time.now
     d.emit({'cloudwatch' => 'logs1'}, time.to_i)
@@ -55,7 +56,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     <<-EOC
     type cloudwatch_logs
     log_group_name #{log_group_name}
-    log_stream_name #{log_stream_name(true)}
+    log_stream_name #{log_stream_name}
     sequence_token_file #{sequence_token_file}
     auto_create_stream true
     EOC
@@ -65,24 +66,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     File.expand_path('../../tmp/sequence_token', __FILE__)
   end
 
-  def log_group_name
-    @log_group_name ||= "fluent-plugin-cloudwatch-test-#{Time.now.to_f}"
-  end
-
-  def log_stream_name(generate = false)
-    if generate
-      @log_stream_name = Time.now.to_f.to_s
-    end
-    @log_stream_name
-  end
-
-  def clear_log_group
-    @logs.delete_log_group(log_group_name: log_group_name)
-  end
-
-  def get_log_events
-    @logs.get_log_events(log_group_name: log_group_name, log_stream_name: log_stream_name).events
-  end
 
   def create_driver(conf = default_config)
     Fluent::Test::BufferedOutputTestDriver.new(Fluent::CloudwatchLogsOutput).configure(conf)
