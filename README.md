@@ -39,6 +39,11 @@ Fetch sample log from CloudWatch Logs:
 </match>
 ```
 
+* `log_group_name`: name of log group to store logs
+* `log_stream_name`: name of log stream to store logs
+* `sequence_token_file`: file to store next sequence token
+* `auto_create_stream`: to create log group and stream automatically
+
 ## in_cloudwatch_logs
 
 ```
@@ -50,6 +55,11 @@ Fetch sample log from CloudWatch Logs:
   state_file /var/lib/fluent/group_stream.in.state
 </source>
 ```
+
+* `tag`: fluentd tag
+* `log_group_name`: name of log group to fetch logs
+* `log_stream_name`: name of log stream to fetch logs
+* `state_file`: file to store current state (e.g. next\_forward\_token)
 
 ## Test
 
