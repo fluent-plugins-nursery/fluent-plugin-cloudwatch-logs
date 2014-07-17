@@ -6,6 +6,37 @@ CloudWatch Logs Plugin for Fluentd
 
     $ gem install fluent-plugin-cloudwatch-logs
 
+## Preparation
+
+Create IAM user with a policy like the following:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:*",
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:*:*",
+        "arn:aws:s3:::*"
+      ]
+    }
+  ]
+}
+```
+
+Set region and credentials:
+
+```
+$ export AWS_REGION=us-east-1
+$ export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
+$ export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
+```
+
 ## Example
 
 Start fluentd:
@@ -27,7 +58,8 @@ Fetch sample log from CloudWatch Logs:
 2014-07-17 00:28:02 +0900 test.cloudwatch_logs.in: {"hello":"world"}
 ```
 
-## out_cloudwatch_logs
+## Configuration
+### out_cloudwatch_logs
 
 ```
 <match tag>
@@ -44,7 +76,7 @@ Fetch sample log from CloudWatch Logs:
 * `sequence_token_file`: file to store next sequence token
 * `auto_create_stream`: to create log group and stream automatically
 
-## in_cloudwatch_logs
+### in_cloudwatch_logs
 
 ```
 <source>
