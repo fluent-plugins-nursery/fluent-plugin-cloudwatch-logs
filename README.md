@@ -1,6 +1,6 @@
 # fluent-plugin-cloudwatch-logs
 
-CloudWatch Logs Plugin for Fluentd
+[CloudWatch Logs](http://aws.amazon.com/blogs/aws/cloudwatch-log-service/) Plugin for Fluentd
 
 ## Installation
 
