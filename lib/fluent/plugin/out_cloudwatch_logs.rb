@@ -2,6 +2,9 @@ module Fluent
   class CloudwatchLogsOutput < BufferedOutput
     Plugin.register_output('cloudwatch_logs', self)
 
+    config_param :aws_key_id, :string, :default => nil
+    config_param :aws_sec_key, :string, :default => nil
+    config_param :region, :string, :default => nil
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
     config_param :sequence_token_file, :string
@@ -15,11 +18,15 @@ module Fluent
       super
 
       require 'aws-sdk-core'
-      @logs = Aws::CloudWatchLogs.new
     end
 
-    def configure(conf)
+    def start
       super
+
+      options = {}
+      options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
+      options[:region] = @region if @region
+      @logs = Aws::CloudWatchLogs.new(options)
 
       create_stream if @auto_create_stream
     end
@@ -78,4 +85,3 @@ module Fluent
     end
   end
 end
-

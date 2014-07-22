@@ -6,11 +6,26 @@ require 'aws-sdk-core'
 module CloudwatchLogsTestHelper
   private
   def logs
-    @logs ||= Aws::CloudWatchLogs.new
+    options = {}
+    options[:credentials] = Aws::Credentials.new(ENV['aws_key_id'], ENV['aws_sec_key']) if ENV['aws_key_id'] && ENV['aws_sec_key']
+    options[:region] = ENV['region'] if ENV['region']
+    @logs ||= Aws::CloudWatchLogs.new(options)
   end
 
   def log_group_name
     @log_group_name ||= "fluent-plugin-cloudwatch-test-#{Time.now.to_f}"
+  end
+
+  def aws_key_id
+    "aws_key_id #{ENV['aws_key_id']}" if ENV['aws_key_id']
+  end
+
+  def aws_sec_key
+    "aws_sec_key #{ENV['aws_sec_key']}" if ENV['aws_sec_key']
+  end
+
+  def region
+    "region #{ENV['region']}" if ENV['region']
   end
 
   def log_stream_name
@@ -57,4 +72,3 @@ module CloudwatchLogsTestHelper
     logs.put_log_events(args)
   end
 end
-
