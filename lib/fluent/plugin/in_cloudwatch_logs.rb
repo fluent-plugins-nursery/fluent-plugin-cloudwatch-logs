@@ -2,6 +2,9 @@ module Fluent
   class CloudwatchLogsInput < Input
     Plugin.register_input('cloudwatch_logs', self)
 
+    config_param :aws_key_id, :string, :default => nil
+    config_param :aws_sec_key, :string, :default => nil
+    config_param :region, :string, :default => nil
     config_param :tag, :string
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
@@ -12,10 +15,14 @@ module Fluent
       super
 
       require 'aws-sdk-core'
-      @logs = Aws::CloudWatchLogs.new
     end
 
     def start
+      options = {}
+      options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
+      options[:region] = @region if @region
+      @logs = Aws::CloudWatchLogs.new(options)
+
       @finished = false
       @thread = Thread.new(&method(:run))
     end

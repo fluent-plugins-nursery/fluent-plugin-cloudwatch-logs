@@ -109,6 +109,12 @@ Run tests:
 $ rake test
 ```
 
+Or, If you do not want to use IAM roll or ENV(this is just like writing to configuration file) :
+
+```
+$ rake aws_key_id=YOUR_ACCESS_KEY aws_sec_key=YOUR_SECRET_KEY region=us-east-1 test
+```
+
 ## TODO
 
 * out_cloudwatch_logs

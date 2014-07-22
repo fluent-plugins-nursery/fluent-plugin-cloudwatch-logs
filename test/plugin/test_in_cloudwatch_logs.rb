@@ -16,12 +16,18 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   def test_configure
     d = create_driver(<<-EOC)
       type cloudwatch_logs
+      aws_key_id test_id
+      aws_sec_key test_key
+      region us-east-1
       tag test
       log_group_name group
       log_stream_name stream
       state_file /tmp/state
     EOC
 
+    assert_equal('test_id', d.instance.aws_key_id)
+    assert_equal('test_key', d.instance.aws_sec_key)
+    assert_equal('us-east-1', d.instance.region)
     assert_equal('test', d.instance.tag)
     assert_equal('group', d.instance.log_group_name)
     assert_equal('stream', d.instance.log_stream_name)
@@ -43,7 +49,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     d.run do
       sleep 5
     end
-    
+
     emits = d.emits
     assert_equal(2, emits.size)
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
@@ -58,6 +64,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       log_group_name #{log_group_name}
       log_stream_name #{log_stream_name}
       state_file /tmp/state
+      #{aws_key_id}
+      #{aws_sec_key}
+      #{region}
     EOC
   end
 
@@ -65,4 +74,3 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     Fluent::Test::InputTestDriver.new(Fluent::CloudwatchLogsInput).configure(conf)
   end
 end
-
