@@ -56,6 +56,29 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('{"cloudwatch":"logs2"}', events[1].message)
   end
 
+  def test_write_with_message_keys
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    message_keys message,cloudwatch
+    EOC
+
+    time = Time.now
+    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
+    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
+    d.run
+
+    sleep 20
+
+    events = get_log_events
+    assert_equal(2, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal('message1 logs1', events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal('message2 logs2', events[1].message)
+  end
+
   private
   def default_config
     <<-EOC

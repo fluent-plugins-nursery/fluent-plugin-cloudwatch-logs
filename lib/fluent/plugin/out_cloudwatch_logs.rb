@@ -9,6 +9,7 @@ module Fluent
     config_param :log_stream_name, :string
     config_param :sequence_token_file, :string
     config_param :auto_create_stream, :bool, default: false
+    config_param :message_keys, :string, :default => nil
 
     unless method_defined?(:log)
       define_method(:log) { $log }
@@ -39,7 +40,14 @@ module Fluent
       events = []
       chunk.msgpack_each do |tag, time, record|
         time_ms = time * 1000
-        events << {timestamp: time_ms, message: record.to_json}
+
+        if @message_keys
+          message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
+        else
+          message = record.to_json
+        end
+
+        events << {timestamp: time_ms, message: message}
       end
       put_events(events)
     end
