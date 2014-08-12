@@ -10,6 +10,7 @@ module Fluent
     config_param :sequence_token_file, :string
     config_param :auto_create_stream, :bool, default: false
     config_param :message_keys, :string, :default => nil
+    config_param :max_message_length, :integer, :default => nil
 
     unless method_defined?(:log)
       define_method(:log) { $log }
@@ -45,6 +46,11 @@ module Fluent
           message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
         else
           message = record.to_json
+        end
+
+        if @max_message_length
+          message.force_encoding('ASCII-8BIT')
+          message = message.slice(0, @max_message_length)
         end
 
         events << {timestamp: time_ms, message: message}

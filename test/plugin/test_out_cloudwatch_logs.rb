@@ -79,6 +79,30 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('message2 logs2', events[1].message)
   end
 
+  def test_write_with_max_message_length
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    message_keys message,cloudwatch
+    max_message_length 10
+    EOC
+
+    time = Time.now
+    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
+    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
+    d.run
+
+    sleep 20
+
+    events = get_log_events
+    assert_equal(2, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal('message1 l', events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal('message2 l', events[1].message)
+  end
+
   private
   def default_config
     <<-EOC
