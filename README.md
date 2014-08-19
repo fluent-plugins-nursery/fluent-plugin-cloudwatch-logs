@@ -68,6 +68,8 @@ Fetch sample log from CloudWatch Logs:
   log_stream_name log-stream-name
   sequence_token_file /var/lib/fluent/group_stream.out.seq
   auto_create_stream true
+  #message_keys key1,key2,key3,...
+  #max_message_length 32768
 </match>
 ```
 
@@ -75,6 +77,8 @@ Fetch sample log from CloudWatch Logs:
 * `log_stream_name`: name of log stream to store logs
 * `sequence_token_file`: file to store next sequence token
 * `auto_create_stream`: to create log group and stream automatically
+* `message_keys`: keys to send messages as events
+* `max_message_length`: maximum length of the message
 
 ### in_cloudwatch_logs
 
@@ -85,8 +89,6 @@ Fetch sample log from CloudWatch Logs:
   log_group_name group
   log_stream_name stream
   state_file /var/lib/fluent/group_stream.in.state
-  #message_keys key1,key2,key3,...
-  #max_message_length 32768
 </source>
 ```
 
@@ -94,8 +96,6 @@ Fetch sample log from CloudWatch Logs:
 * `log_group_name`: name of log group to fetch logs
 * `log_stream_name`: name of log stream to fetch logs
 * `state_file`: file to store current state (e.g. next\_forward\_token)
-* `message_keys`: keys to send messages as events
-* `max_message_length`: maximum length of the message
 
 ## Test
 
