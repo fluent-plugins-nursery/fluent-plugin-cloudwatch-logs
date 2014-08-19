@@ -40,9 +40,17 @@ module CloudwatchLogsTestHelper
   end
 
   def clear_log_group
-    logs.delete_log_group(log_group_name: log_group_name)
-  rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException
-    # pass
+    [log_group_name, fluentd_tag].each do |name|
+      begin
+        logs.delete_log_group(log_group_name: name)
+      rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException
+        # pass
+      end
+    end
+  end
+
+  def fluentd_tag
+    @fluentd_tag ||= "fluent.plugin.cloudwatch.test.#{Time.now.to_f}"
   end
 
   def create_log_stream
@@ -59,8 +67,8 @@ module CloudwatchLogsTestHelper
     end
   end
 
-  def get_log_events
-    logs.get_log_events(log_group_name: log_group_name, log_stream_name: log_stream_name).events
+  def get_log_events(tag = nil)
+    logs.get_log_events(log_group_name: tag || log_group_name, log_stream_name: log_stream_name).events
   end
 
   def put_log_events(events)

@@ -5,12 +5,12 @@ module Fluent
     config_param :aws_key_id, :string, :default => nil
     config_param :aws_sec_key, :string, :default => nil
     config_param :region, :string, :default => nil
-    config_param :log_group_name, :string
+    config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string
-    config_param :sequence_token_file, :string
     config_param :auto_create_stream, :bool, default: false
     config_param :message_keys, :string, :default => nil
     config_param :max_message_length, :integer, :default => nil
+    config_param :use_tag_as_group, :bool, :default => false
 
     unless method_defined?(:log)
       define_method(:log) { $log }
@@ -29,8 +29,7 @@ module Fluent
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
       @logs = Aws::CloudWatchLogs.new(options)
-
-      create_stream if @auto_create_stream
+      @sequence_tokens = {}
     end
 
     def format(tag, time, record)
@@ -39,62 +38,110 @@ module Fluent
 
     def write(chunk)
       events = []
-      chunk.msgpack_each do |tag, time, record|
-        time_ms = time * 1000
+      chunk.enum_for(:msgpack_each).chunk {|tag, time, record|
+        tag
+      }.each {|tag, rs|
+        group_name = @use_tag_as_group ? tag : @log_group_name
 
-        if @message_keys
-          message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
-        else
-          message = record.to_json
+        unless log_group_exists?(group_name)
+          if @auto_create_stream
+            create_log_group(group_name)
+          else
+            log.warn "Log group '#{group_name}' dose not exists"
+            next
+          end
         end
 
-        if @max_message_length
-          message.force_encoding('ASCII-8BIT')
-          message = message.slice(0, @max_message_length)
+        unless log_stream_exists?(group_name, @log_stream_name)
+          if @auto_create_stream
+            create_log_stream(group_name, @log_stream_name)
+          else
+            log.warn "Log stream '#{@log_stream_name}' dose not exists"
+            next
+          end
         end
 
-        events << {timestamp: time_ms, message: message}
-      end
-      put_events(events)
+        rs.each do |t, time, record|
+          time_ms = time * 1000
+
+          if @message_keys
+            message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
+          else
+            message = record.to_json
+          end
+
+          if @max_message_length
+            message.force_encoding('ASCII-8BIT')
+            message = message.slice(0, @max_message_length)
+          end
+
+          events << {timestamp: time_ms, message: message}
+        end
+        put_events(group_name, events)
+      }
     end
 
     private
-    def next_sequence_token
-      return nil unless File.exist?(@sequence_token_file)
-      open(@sequence_token_file) {|f| f.read }.chomp
+    def next_sequence_token(group_name, stream_name)
+      @sequence_tokens[group_name][stream_name]
     end
 
-    def store_next_sequence_token(token)
-      open(@sequence_token_file, 'w') do |f|
-        f.write token
-      end
+    def store_next_sequence_token(group_name, stream_name, token)
+      @sequence_tokens[group_name][stream_name] = token
     end
 
-    def put_events(events)
+    def put_events(group_name, events)
       args = {
         log_events: events,
-        log_group_name: @log_group_name,
+        log_group_name: group_name,
         log_stream_name: @log_stream_name,
       }
-      args[:sequence_token] = next_sequence_token if next_sequence_token
+      token = next_sequence_token(group_name, @log_stream_name)
+      args[:sequence_token] = token if token
 
       response = @logs.put_log_events(args)
-      store_next_sequence_token(response.next_sequence_token)
+      store_next_sequence_token(group_name, @log_stream_name, response.next_sequence_token)
     end
 
-    def create_stream
-      log.debug "Creating log stream '#{@log_stream_name}' in log group '#{@log_group_name}'"
-
+    def create_log_group(group_name)
       begin
-        @logs.create_log_group(log_group_name: @log_group_name)
+        @logs.create_log_group(log_group_name: group_name)
+        @sequence_tokens[group_name] = {}
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
-        log.debug "Log group '#{@log_group_name}' already exists"
+        log.debug "Log group '#{group_name}' already exists"
       end
+    end
 
+    def create_log_stream(group_name, stream_name)
       begin
-        @logs.create_log_stream(log_group_name: @log_group_name, log_stream_name: @log_stream_name)
+        @logs.create_log_stream(log_group_name: group_name, log_stream_name: stream_name)
+        @sequence_tokens[group_name][stream_name] = nil
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
-        log.debug "Log stream '#{@log_stream_name}' already exists"
+        log.debug "Log stream '#{stream_name}' already exists"
+      end
+    end
+
+    def log_group_exists?(group_name)
+      if @sequence_tokens[group_name]
+        true
+      elsif @logs.describe_log_groups.log_groups.any? {|i| i.log_group_name == group_name }
+        @sequence_tokens[group_name] = {}
+        true
+      else
+        false
+      end
+    end
+
+    def log_stream_exists?(group_name, stream_name)
+      if not @sequence_tokens[group_name]
+        false
+      elsif @sequence_tokens[group_name].has_key?(stream_name)
+        true
+      elsif (log_stream = @logs.describe_log_streams(log_group_name: group_name).log_streams.find {|i| i.log_stream_name  == stream_name })
+        @sequence_tokens[group_name][stream_name] = log_stream.upload_sequence_token
+        true
+      else
+        false
       end
     end
   end
