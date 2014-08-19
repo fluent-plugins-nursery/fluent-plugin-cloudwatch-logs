@@ -28,7 +28,7 @@ module Fluent
       options = {}
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
-      @logs = Aws::CloudWatchLogs.new(options)
+      @logs = Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
     end
 
