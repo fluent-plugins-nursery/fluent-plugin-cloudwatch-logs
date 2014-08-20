@@ -24,7 +24,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       region us-east-1
       log_group_name test_group
       log_stream_name test_stream
-      sequence_token_file /tmp/sq
       auto_create_stream false
     EOC
 
@@ -33,7 +32,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('us-east-1', d.instance.region)
     assert_equal('test_group', d.instance.log_group_name)
     assert_equal('test_stream', d.instance.log_stream_name)
-    assert_equal('/tmp/sq', d.instance.sequence_token_file)
     assert_equal(false, d.instance.auto_create_stream)
   end
 
@@ -103,6 +101,30 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('message2 l', events[1].message)
   end
 
+  def test_write_use_tag_as_group
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    message_keys message,cloudwatch
+    use_tag_as_group true
+    EOC
+
+    time = Time.now
+    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
+    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
+    d.run
+
+    sleep 20
+
+    events = get_log_events(fluentd_tag)
+    assert_equal(2, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal('message1 logs1', events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal('message2 logs2', events[1].message)
+  end
+
   private
   def default_config
     <<-EOC
@@ -123,6 +145,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
 
   def create_driver(conf = default_config)
-    Fluent::Test::BufferedOutputTestDriver.new(Fluent::CloudwatchLogsOutput).configure(conf)
+    Fluent::Test::BufferedOutputTestDriver.new(Fluent::CloudwatchLogsOutput, fluentd_tag).configure(conf)
   end
 end

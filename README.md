@@ -66,10 +66,10 @@ Fetch sample log from CloudWatch Logs:
   type cloudwatch_logs
   log_group_name log-group-name
   log_stream_name log-stream-name
-  sequence_token_file /var/lib/fluent/group_stream.out.seq
   auto_create_stream true
   #message_keys key1,key2,key3,...
   #max_message_length 32768
+  #use_tag_as_group false
 </match>
 ```
 
@@ -79,6 +79,7 @@ Fetch sample log from CloudWatch Logs:
 * `auto_create_stream`: to create log group and stream automatically
 * `message_keys`: keys to send messages as events
 * `max_message_length`: maximum length of the message
+* `use_tag_as_group`: to use tag as a group name
 
 ### in_cloudwatch_logs
 
