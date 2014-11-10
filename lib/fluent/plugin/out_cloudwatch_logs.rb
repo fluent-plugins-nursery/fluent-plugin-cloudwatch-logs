@@ -77,6 +77,9 @@ module Fluent
 
           events << {timestamp: time_ms, message: message}
         end
+        # The log events in the batch must be in chronological ordered by their timestamp.
+        # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+        events = events.sort_by {|e| e[:timestamp] }
         put_events(group_name, events)
       }
     end
