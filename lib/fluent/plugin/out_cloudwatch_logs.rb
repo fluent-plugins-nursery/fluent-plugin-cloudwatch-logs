@@ -12,6 +12,8 @@ module Fluent
     config_param :max_message_length, :integer, :default => nil
     config_param :use_tag_as_group, :bool, :default => false
 
+    MAX_EVENTS_SIZE = 30720
+
     unless method_defined?(:log)
       define_method(:log) { $log }
     end
@@ -70,8 +72,9 @@ module Fluent
             message = record.to_json
           end
 
+          message.force_encoding('ASCII-8BIT')
+
           if @max_message_length
-            message.force_encoding('ASCII-8BIT')
             message = message.slice(0, @max_message_length)
           end
 
@@ -80,7 +83,7 @@ module Fluent
         # The log events in the batch must be in chronological ordered by their timestamp.
         # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
         events = events.sort_by {|e| e[:timestamp] }
-        put_events(group_name, events)
+        put_events_by_chunk(group_name, events)
       }
     end
 
@@ -91,6 +94,25 @@ module Fluent
 
     def store_next_sequence_token(group_name, stream_name, token)
       @sequence_tokens[group_name][stream_name] = token
+    end
+
+    def put_events_by_chunk(group_name, events)
+      chunk = []
+
+      # The maximum batch size is 32,768 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
+      # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+      while event = events.shift
+        if (chunk + [event]).inject(0) {|sum, e| sum + e[:message].length } > MAX_EVENTS_SIZE
+          put_events(group_name, chunk)
+          chunk = [event]
+        else
+          chunk << event
+        end
+      end
+
+      unless chunk.empty?
+        put_events(group_name, chunk)
+      end
     end
 
     def put_events(group_name, events)
