@@ -10,6 +10,7 @@ module Fluent
     config_param :log_stream_name, :string
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
+    config_param :http_proxy, :string, default: nil
 
     def initialize
       super
@@ -21,6 +22,7 @@ module Fluent
       options = {}
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
+      options[:http_proxy] = @http_proxy if @http_proxy
       @logs = Aws::CloudWatchLogs::Client.new(options)
 
       @finished = false
