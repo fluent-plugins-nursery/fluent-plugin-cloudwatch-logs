@@ -9,7 +9,7 @@ module CloudwatchLogsTestHelper
     options = {}
     options[:credentials] = Aws::Credentials.new(ENV['aws_key_id'], ENV['aws_sec_key']) if ENV['aws_key_id'] && ENV['aws_sec_key']
     options[:region] = ENV['region'] if ENV['region']
-    @logs ||= Aws::CloudWatchLogs.new(options)
+    @logs ||= Aws::CloudWatchLogs::Client.new(options)
   end
 
   def log_group_name
