@@ -11,6 +11,7 @@ module Fluent
     config_param :message_keys, :string, :default => nil
     config_param :max_message_length, :integer, :default => nil
     config_param :use_tag_as_group, :bool, :default => false
+    config_param :http_proxy, :string, default: nil
 
     MAX_EVENTS_SIZE = 30720
 
@@ -30,6 +31,7 @@ module Fluent
       options = {}
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
+      options[:http_proxy] = @http_proxy if @http_proxy
       @logs = Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
     end
