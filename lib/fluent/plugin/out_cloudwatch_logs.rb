@@ -113,7 +113,16 @@ module Fluent
       end
 
       unless chunk.empty?
-        put_events(group_name, chunk)
+        begin
+          put_events(group_name, chunk)
+        rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException => e
+          e.message =~ /expected sequenceToken is: (\w+)/
+          sequence_token = $1
+          raise e unless sequence_token
+          log.warn "Retry with expected sequenceToken: #{sequence_token}"
+          store_next_sequence_token(group_name, @log_stream_name, sequence_token)
+          put_events(group_name, chunk)
+        end
       end
     end
 
