@@ -56,6 +56,43 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
   end
 
+  def test_emit_width_format
+    create_log_stream
+
+    time_ms = (Time.now.to_f * 1000).floor
+    put_log_events([
+      {timestamp: time_ms, message: 'logs1'},
+      {timestamp: time_ms, message: 'logs2'},
+    ])
+
+    sleep 5
+
+    d = create_driver(<<-EOC)
+      tag test
+      type cloudwatch_logs
+      log_group_name #{log_group_name}
+      log_stream_name #{log_stream_name}
+      state_file /tmp/state
+      format /^(?<cloudwatch>[^ ]*)?/
+      #{aws_key_id}
+      #{aws_sec_key}
+      #{region}
+    EOC
+
+    d.run do
+      sleep 5
+    end
+
+    emits = d.emits
+    assert_equal(2, emits.size)
+    assert_equal('test', emits[0][0])
+    assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
+    assert_equal({'cloudwatch' => 'logs1'}, emits[0][2])
+    assert_equal('test', emits[1][0])
+    assert_in_delta((time_ms / 1000).floor, emits[1][1], 10)
+    assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
+  end
+
   private
   def default_config
     <<-EOC

@@ -17,6 +17,11 @@ module Fluent
       require 'aws-sdk-core'
     end
 
+    def configure(conf)
+      super
+      configure_parser(conf)
+    end
+
     def start
       options = {}
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
@@ -33,6 +38,13 @@ module Fluent
     end
 
     private
+    def configure_parser(conf)
+      if conf['format']
+        @parser = TextParser.new
+        @parser.configure(conf)
+      end
+    end
+
     def next_token
       return nil unless File.exist?(@state_file)
       File.read(@state_file).chomp
@@ -53,9 +65,14 @@ module Fluent
 
           events = get_events
           events.each do |event|
-            time = (event.timestamp / 1000).floor
-            record = JSON.parse(event.message)
-            Engine.emit(@tag, time, record)
+            if @parser
+              record = @parser.parse(event.message)
+              Engine.emit(@tag, record[0], record[1])
+            else
+              time = (event.timestamp / 1000).floor
+              record = JSON.parse(event.message)
+              Engine.emit(@tag, time, record)
+            end
           end
         end
         sleep 1
