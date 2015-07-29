@@ -13,7 +13,7 @@ module Fluent
     config_param :use_tag_as_group, :bool, :default => false
     config_param :http_proxy, :string, default: nil
 
-    MAX_EVENTS_SIZE = 30720
+    MAX_EVENTS_SIZE = 1_048_576
 
     unless method_defined?(:log)
       define_method(:log) { $log }
@@ -101,7 +101,7 @@ module Fluent
     def put_events_by_chunk(group_name, events)
       chunk = []
 
-      # The maximum batch size is 32,768 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
+      # The maximum batch size is 1,048,576 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
       # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
       while event = events.shift
         if (chunk + [event]).inject(0) {|sum, e| sum + e[:message].length } > MAX_EVENTS_SIZE
