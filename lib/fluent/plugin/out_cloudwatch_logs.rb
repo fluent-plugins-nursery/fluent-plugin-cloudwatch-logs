@@ -2,8 +2,8 @@ module Fluent
   class CloudwatchLogsOutput < BufferedOutput
     Plugin.register_output('cloudwatch_logs', self)
 
-    config_param :aws_key_id, :string, :default => nil
-    config_param :aws_sec_key, :string, :default => nil
+    config_param :aws_key_id, :string, :default => nil, :secret => true
+    config_param :aws_sec_key, :string, :default => nil, :secret => true
     config_param :region, :string, :default => nil
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string
