@@ -69,11 +69,11 @@ module Fluent
           events.each do |event|
             if @parser
               record = @parser.parse(event.message)
-              Engine.emit(@tag, record[0], record[1])
+              router.emit(@tag, record[0], record[1])
             else
               time = (event.timestamp / 1000).floor
               record = JSON.parse(event.message)
-              Engine.emit(@tag, time, record)
+              router.emit(@tag, time, record)
             end
           end
         end
