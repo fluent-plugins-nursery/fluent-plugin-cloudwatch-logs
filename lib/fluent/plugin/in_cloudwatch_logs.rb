@@ -2,6 +2,11 @@ module Fluent
   class CloudwatchLogsInput < Input
     Plugin.register_input('cloudwatch_logs', self)
 
+    # Define `router` method of v0.12 to support v0.10.57 or earlier
+    unless method_defined?(:router)
+      define_method("router") { Engine }
+    end
+
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
     config_param :region, :string, :default => nil
