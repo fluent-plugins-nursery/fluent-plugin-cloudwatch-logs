@@ -164,12 +164,27 @@ module Fluent
         false
       elsif @sequence_tokens[group_name].has_key?(stream_name)
         true
-      elsif (log_stream = @logs.describe_log_streams(log_group_name: group_name).log_streams.find {|i| i.log_stream_name  == stream_name })
+      elsif (log_stream = find_log_stream(group_name, stream_name))
         @sequence_tokens[group_name][stream_name] = log_stream.upload_sequence_token
         true
       else
         false
       end
+    end
+
+    def find_log_stream(group_name, stream_name)
+      next_token = nil
+      loop do
+        response = @logs.describe_log_streams(log_group_name: group_name, next_token: next_token)
+        if (log_stream = response.log_streams.find {|i| i.log_stream_name == stream_name })
+          return log_stream
+        end
+        if response.next_token.nil?
+          break
+        end
+        next_token = response.next_token
+      end
+      nil
     end
   end
 end
