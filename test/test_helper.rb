@@ -68,8 +68,8 @@ module CloudwatchLogsTestHelper
     end
   end
 
-  def get_log_events(tag = nil)
-    logs.get_log_events(log_group_name: tag || log_group_name, log_stream_name: log_stream_name).events
+  def get_log_events(group = log_group_name, stream = log_stream_name)
+    logs.get_log_events(log_group_name: group, log_stream_name: stream).events
   end
 
   def put_log_events(events)
