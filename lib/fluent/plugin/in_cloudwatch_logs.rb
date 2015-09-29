@@ -2,6 +2,11 @@ module Fluent
   class CloudwatchLogsInput < Input
     Plugin.register_input('cloudwatch_logs', self)
 
+    # Define `router` method of v0.12 to support v0.10.57 or earlier
+    unless method_defined?(:router)
+      define_method("router") { Engine }
+    end
+
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
     config_param :region, :string, :default => nil
@@ -69,11 +74,11 @@ module Fluent
           events.each do |event|
             if @parser
               record = @parser.parse(event.message)
-              Engine.emit(@tag, record[0], record[1])
+              router.emit(@tag, record[0], record[1])
             else
               time = (event.timestamp / 1000).floor
               record = JSON.parse(event.message)
-              Engine.emit(@tag, time, record)
+              router.emit(@tag, time, record)
             end
           end
         end
