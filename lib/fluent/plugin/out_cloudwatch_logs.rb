@@ -104,7 +104,7 @@ module Fluent
       # The maximum batch size is 1,048,576 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
       # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
       while event = events.shift
-        if (chunk + [event]).inject(0) {|sum, e| sum + e[:message].length } > MAX_EVENTS_SIZE
+        if (chunk + [event]).inject(0) {|sum, e| sum + e[:message].length + 26 } > MAX_EVENTS_SIZE
           put_events(group_name, chunk)
           chunk = [event]
         else
