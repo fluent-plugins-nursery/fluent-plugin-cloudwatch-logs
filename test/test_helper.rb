@@ -10,7 +10,7 @@ module CloudwatchLogsTestHelper
     options[:credentials] = Aws::Credentials.new(ENV['aws_key_id'], ENV['aws_sec_key']) if ENV['aws_key_id'] && ENV['aws_sec_key']
     options[:region] = ENV['region'] if ENV['region']
     options[:http_proxy] = ENV['http_proxy'] if ENV['http_proxy']
-    @logs ||= Aws::CloudWatchLogs.new(options)
+    @logs ||= Aws::CloudWatchLogs::Client.new(options)
   end
 
   def log_group_name
@@ -68,8 +68,8 @@ module CloudwatchLogsTestHelper
     end
   end
 
-  def get_log_events(tag = nil)
-    logs.get_log_events(log_group_name: tag || log_group_name, log_stream_name: log_stream_name).events
+  def get_log_events(group = log_group_name, stream = log_stream_name)
+    logs.get_log_events(log_group_name: group, log_stream_name: stream).events
   end
 
   def put_log_events(events)

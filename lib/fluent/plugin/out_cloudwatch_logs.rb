@@ -6,11 +6,12 @@ module Fluent
     config_param :aws_sec_key, :string, :default => nil, :secret => true
     config_param :region, :string, :default => nil
     config_param :log_group_name, :string, :default => nil
-    config_param :log_stream_name, :string
+    config_param :log_stream_name, :string, :default => nil
     config_param :auto_create_stream, :bool, default: false
     config_param :message_keys, :string, :default => nil
     config_param :max_message_length, :integer, :default => nil
     config_param :use_tag_as_group, :bool, :default => false
+    config_param :use_tag_as_stream, :bool, :default => false
     config_param :http_proxy, :string, default: nil
 
     MAX_EVENTS_SIZE = 1_048_576
@@ -46,6 +47,7 @@ module Fluent
         tag
       }.each {|tag, rs|
         group_name = @use_tag_as_group ? tag : @log_group_name
+        stream_name = @use_tag_as_stream ? tag : @log_stream_name
 
         unless log_group_exists?(group_name)
           if @auto_create_stream
@@ -56,11 +58,11 @@ module Fluent
           end
         end
 
-        unless log_stream_exists?(group_name, @log_stream_name)
+        unless log_stream_exists?(group_name, stream_name)
           if @auto_create_stream
-            create_log_stream(group_name, @log_stream_name)
+            create_log_stream(group_name, stream_name)
           else
-            log.warn "Log stream '#{@log_stream_name}' dose not exists"
+            log.warn "Log stream '#{stream_name}' dose not exists"
             next
           end
         end
@@ -85,7 +87,7 @@ module Fluent
         # The log events in the batch must be in chronological ordered by their timestamp.
         # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
         events = events.sort_by {|e| e[:timestamp] }
-        put_events_by_chunk(group_name, events)
+        put_events_by_chunk(group_name, stream_name, events)
       }
     end
 
@@ -98,14 +100,14 @@ module Fluent
       @sequence_tokens[group_name][stream_name] = token
     end
 
-    def put_events_by_chunk(group_name, events)
+    def put_events_by_chunk(group_name, stream_name, events)
       chunk = []
 
       # The maximum batch size is 1,048,576 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
       # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
       while event = events.shift
         if (chunk + [event]).inject(0) {|sum, e| sum + e[:message].length + 26 } > MAX_EVENTS_SIZE
-          put_events(group_name, chunk)
+          put_events(group_name, stream_name, chunk)
           chunk = [event]
         else
           chunk << event
@@ -113,21 +115,21 @@ module Fluent
       end
 
       unless chunk.empty?
-        put_events(group_name, chunk)
+        put_events(group_name, stream_name, chunk)
       end
     end
 
-    def put_events(group_name, events)
+    def put_events(group_name, stream_name, events)
       args = {
         log_events: events,
         log_group_name: group_name,
-        log_stream_name: @log_stream_name,
+        log_stream_name: stream_name,
       }
-      token = next_sequence_token(group_name, @log_stream_name)
+      token = next_sequence_token(group_name, stream_name)
       args[:sequence_token] = token if token
 
       response = @logs.put_log_events(args)
-      store_next_sequence_token(group_name, @log_stream_name, response.next_sequence_token)
+      store_next_sequence_token(group_name, stream_name, response.next_sequence_token)
     end
 
     def create_log_group(group_name)
