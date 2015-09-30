@@ -72,6 +72,7 @@ Fetch sample log from CloudWatch Logs:
   #message_keys key1,key2,key3,...
   #max_message_length 32768
   #use_tag_as_group false
+  #use_tag_as_stream false
 </match>
 ```
 
@@ -82,6 +83,7 @@ Fetch sample log from CloudWatch Logs:
 * `message_keys`: keys to send messages as events
 * `max_message_length`: maximum length of the message
 * `use_tag_as_group`: to use tag as a group name
+* `use_tag_as_stream`: to use tag as a stream name
 
 ### in_cloudwatch_logs
 
