@@ -82,6 +82,7 @@ Fetch sample log from CloudWatch Logs:
 * `auto_create_stream`: to create log group and stream automatically
 * `message_keys`: keys to send messages as events
 * `max_message_length`: maximum length of the message
+* `max_events_per_batch`: maximum number of events to send at once (default 10000)
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name
 
