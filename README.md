@@ -94,6 +94,7 @@ Fetch sample log from CloudWatch Logs:
   tag cloudwatch.in
   log_group_name group
   log_stream_name stream
+  #use_log_stream_name_prefix true
   state_file /var/lib/fluent/group_stream.in.state
 </source>
 ```
@@ -101,6 +102,7 @@ Fetch sample log from CloudWatch Logs:
 * `tag`: fluentd tag
 * `log_group_name`: name of log group to fetch logs
 * `log_stream_name`: name of log stream to fetch logs
+* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 
 ## Test
