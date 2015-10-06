@@ -10,6 +10,7 @@ module Fluent
     config_param :auto_create_stream, :bool, default: false
     config_param :message_keys, :string, :default => nil
     config_param :max_message_length, :integer, :default => nil
+    config_param :max_events_per_batch, :integer, :default => 10000
     config_param :use_tag_as_group, :bool, :default => false
     config_param :use_tag_as_stream, :bool, :default => false
     config_param :http_proxy, :string, default: nil
@@ -106,7 +107,11 @@ module Fluent
       # The maximum batch size is 1,048,576 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
       # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
       while event = events.shift
-        if (chunk + [event]).inject(0) {|sum, e| sum + e[:message].length + 26 } > MAX_EVENTS_SIZE
+        new_chunk = chunk + [event]
+        chunk_span_too_big = new_chunk.size > 1 && new_chunk[-1][:timestamp] - new_chunk[0][:timestamp] >= 1000 * 60 * 60 * 24
+        chunk_too_big = new_chunk.inject(0) {|sum, e| sum + e[:message].length + 26 } > MAX_EVENTS_SIZE
+        chunk_too_long = @max_events_per_batch && chunk.size >= @max_events_per_batch
+        if chunk_too_big or chunk_span_too_big or chunk_too_long
           put_events(group_name, stream_name, chunk)
           chunk = [event]
         else
