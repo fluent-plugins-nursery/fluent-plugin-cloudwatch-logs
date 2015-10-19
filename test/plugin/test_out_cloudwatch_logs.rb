@@ -171,6 +171,53 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('message2 logs2', events[1].message)
   end
 
+  def test_include_time_key
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    include_time_key true
+    EOC
+
+    time = Time.now
+    d.emit({'cloudwatch' => 'logs1'}, time.to_i)
+    d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
+    d.run
+
+    sleep 20
+
+    events = get_log_events
+    assert_equal(2, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{(time+1).utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[1].message)
+  end
+
+  def test_include_time_key_localtime
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    include_time_key true
+    localtime true
+    EOC
+
+    time = Time.now
+    d.emit({'cloudwatch' => 'logs1'}, time.to_i)
+    d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
+    d.run
+
+    sleep 20
+
+    events = get_log_events
+    assert_equal(2, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{time.strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{(time+1).strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[1].message)
+  end
+
   private
   def default_config
     <<-EOC

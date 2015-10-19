@@ -73,6 +73,8 @@ Fetch sample log from CloudWatch Logs:
   #max_message_length 32768
   #use_tag_as_group false
   #use_tag_as_stream false
+  #include_time_key true
+  #localtime true
 </match>
 ```
 
@@ -85,6 +87,8 @@ Fetch sample log from CloudWatch Logs:
 * `max_events_per_batch`: maximum number of events to send at once (default 10000)
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name
+* `include_time_key`: include time key as part of the log entry (defaults to UTC)
+* `localtime`: use localtime timezone for `include_time_key` output (overrides UTC default)
 
 ### in_cloudwatch_logs
 
