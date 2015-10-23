@@ -13,6 +13,7 @@ module Fluent
     config_param :tag, :string
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
+    config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
@@ -57,8 +58,10 @@ module Fluent
       File.read(@state_file).chomp
     end
 
-    def store_next_token(token)
-      open(@state_file, 'w') do |f|
+    def store_next_token(token, log_stream_name = nil)
+      state_file = @state_file
+      state_file = "#{@state_file}_#{log_stream_name}" if log_stream_name
+      open(state_file, 'w') do |f|
         f.write token
       end
     end
@@ -70,15 +73,19 @@ module Fluent
         if Time.now > @next_fetch_time
           @next_fetch_time += @fetch_interval
 
-          events = get_events
-          events.each do |event|
-            if @parser
-              record = @parser.parse(event.message)
-              router.emit(@tag, record[0], record[1])
-            else
-              time = (event.timestamp / 1000).floor
-              record = JSON.parse(event.message)
-              router.emit(@tag, time, record)
+          if @use_log_stream_name_prefix
+            log_streams = describe_log_streams
+            log_streams.each do |log_stram|
+              log_stream_name = log_stram.log_stream_name
+              events = get_events(log_stream_name)
+              events.each do |event|
+                emit(event)
+              end
+            end
+          else
+            events = get_events(@log_stream_name)
+            events.each do |event|
+              emit(event)
             end
           end
         end
@@ -86,16 +93,45 @@ module Fluent
       end
     end
 
-    def get_events
+    def emit(event)
+      if @parser
+        record = @parser.parse(event.message)
+        router.emit(@tag, record[0], record[1])
+      else
+        time = (event.timestamp / 1000).floor
+        record = JSON.parse(event.message)
+        router.emit(@tag, time, record)
+      end
+    end
+
+    def get_events(log_stream_name)
       request = {
         log_group_name: @log_group_name,
-        log_stream_name: @log_stream_name,
+        log_stream_name: log_stream_name
       }
       request[:next_token] = next_token if next_token
       response = @logs.get_log_events(request)
       store_next_token(response.next_forward_token)
 
       response.events
+    end
+
+    def describe_log_streams(log_streams = nil, next_token = nil)
+      request = {
+        log_group_name: @log_group_name
+      }
+      request[:next_token] = next_token if next_token
+      request[:log_stream_name_prefix] = @log_stream_name
+      response = @logs.describe_log_streams(request)
+      if log_streams
+        log_streams << response.log_streams
+      else
+        log_streams = response.log_streams
+      end
+      if response.next_token
+        log_streams = describe_log_streams(log_streams, response.next_token)
+      end
+      log_streams
     end
   end
 end

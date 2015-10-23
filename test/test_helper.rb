@@ -29,15 +29,15 @@ module CloudwatchLogsTestHelper
     "region #{ENV['region']}" if ENV['region']
   end
 
-  def log_stream_name
+  def log_stream_name(log_stream_name_prefix = nil)
     if !@log_stream_name
-      new_log_stream
+      new_log_stream(log_stream_name_prefix)
     end
     @log_stream_name
   end
 
-  def new_log_stream
-    @log_stream_name = Time.now.to_f.to_s
+  def new_log_stream(log_stream_name_prefix = nil)
+    @log_stream_name = log_stream_name_prefix ? log_stream_name_prefix + Time.now.to_f.to_s : Time.now.to_f.to_s
   end
 
   def clear_log_group
@@ -54,7 +54,7 @@ module CloudwatchLogsTestHelper
     @fluentd_tag ||= "fluent.plugin.cloudwatch.test.#{Time.now.to_f}"
   end
 
-  def create_log_stream
+  def create_log_stream()
     begin
       logs.create_log_group(log_group_name: log_group_name)
     rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
