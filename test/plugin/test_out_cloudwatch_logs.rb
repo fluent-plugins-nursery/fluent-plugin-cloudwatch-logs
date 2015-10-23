@@ -53,6 +53,22 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('{"cloudwatch":"logs2"}', events[1].message)
   end
 
+  def test_write_utf8
+    new_log_stream
+
+    d = create_driver
+    time = Time.now
+    d.emit({'cloudwatch' => 'これは日本語です'.force_encoding('UTF-8')}, time.to_i)
+    d.run
+
+    sleep 20
+
+    events = get_log_events
+    assert_equal(1, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal('{"cloudwatch":"これは日本語です"}', events[0].message)
+  end
+
   def test_write_24h_apart
     new_log_stream
 

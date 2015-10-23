@@ -79,7 +79,9 @@ module Fluent
             message = record.to_json
           end
 
-          message.force_encoding('ASCII-8BIT')
+          # CloudWatchLogs API only accepts valid UTF-8 strings
+          # so we should encode the message to UTF-8
+          message.encode('UTF-8', :invalid => :replace)
 
           if @max_message_length
             message = message.slice(0, @max_message_length)
@@ -111,7 +113,7 @@ module Fluent
       while event = events.shift
         new_chunk = chunk + [event]
         chunk_span_too_big = new_chunk.size > 1 && new_chunk[-1][:timestamp] - new_chunk[0][:timestamp] >= 1000 * 60 * 60 * 24
-        chunk_too_big = new_chunk.inject(0) {|sum, e| sum + e[:message].length + 26 } > MAX_EVENTS_SIZE
+        chunk_too_big = new_chunk.inject(0) {|sum, e| sum + e[:message].bytesize + 26 } > MAX_EVENTS_SIZE
         chunk_too_long = @max_events_per_batch && chunk.size >= @max_events_per_batch
         if chunk_too_big or chunk_span_too_big or chunk_too_long
           put_events(group_name, stream_name, chunk)
