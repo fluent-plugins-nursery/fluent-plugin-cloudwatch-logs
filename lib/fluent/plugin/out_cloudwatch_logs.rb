@@ -56,7 +56,7 @@ module Fluent
           if @auto_create_stream
             create_log_group(group_name)
           else
-            log.warn "Log group '#{group_name}' dose not exists"
+            log.warn "Log group '#{group_name}' does not exist"
             next
           end
         end
@@ -65,7 +65,7 @@ module Fluent
           if @auto_create_stream
             create_log_stream(group_name, stream_name)
           else
-            log.warn "Log stream '#{stream_name}' dose not exists"
+            log.warn "Log stream '#{stream_name}' does not exist"
             next
           end
         end
