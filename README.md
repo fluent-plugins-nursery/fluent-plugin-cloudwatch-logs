@@ -80,7 +80,6 @@ Fetch sample log from CloudWatch Logs:
 
 * `log_group_name`: name of log group to store logs
 * `log_stream_name`: name of log stream to store logs
-* `sequence_token_file`: file to store next sequence token
 * `auto_create_stream`: to create log group and stream automatically
 * `message_keys`: keys to send messages as events
 * `max_message_length`: maximum length of the message

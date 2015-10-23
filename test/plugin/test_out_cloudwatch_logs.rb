@@ -12,7 +12,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
   def teardown
     clear_log_group
-    FileUtils.rm_f(sequence_token_file)
   end
 
 
@@ -224,18 +223,12 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     type cloudwatch_logs
     log_group_name #{log_group_name}
     log_stream_name #{log_stream_name}
-    sequence_token_file #{sequence_token_file}
     auto_create_stream true
     #{aws_key_id}
     #{aws_sec_key}
     #{region}
     EOC
   end
-
-  def sequence_token_file
-    File.expand_path('../../tmp/sequence_token', __FILE__)
-  end
-
 
   def create_driver(conf = default_config)
     Fluent::Test::BufferedOutputTestDriver.new(Fluent::CloudwatchLogsOutput, fluentd_tag).configure(conf)
