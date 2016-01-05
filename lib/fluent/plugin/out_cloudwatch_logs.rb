@@ -153,6 +153,7 @@ module Fluent
     def create_log_stream(group_name, stream_name)
       begin
         @logs.create_log_stream(log_group_name: group_name, log_stream_name: stream_name)
+        @sequence_tokens[group_name] ||= {}
         @sequence_tokens[group_name][stream_name] = nil
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
         log.debug "Log stream '#{stream_name}' already exists"
