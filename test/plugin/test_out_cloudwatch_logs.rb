@@ -238,9 +238,33 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     d = create_driver(<<-EOC)
     #{default_config([])}
-    message_keys message,cloudwatch
     log_group_name_key group_name_key
     log_stream_name_key stream_name_key
+    EOC
+
+    record = {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => log_stream_name}
+
+    time = Time.now
+    d.emit(record, time.to_i)
+    d.run
+
+    sleep 10
+
+    events = get_log_events(log_group_name, log_stream_name)
+    assert_equal(1, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal(record, JSON.parse(events[0].message))
+  end
+
+  def test_remove_log_group_name_key_and_remove_log_stream_name_key
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config([])}
+    log_group_name_key group_name_key
+    log_stream_name_key stream_name_key
+    remove_log_group_name_key true
+    remove_log_stream_name_key true
     EOC
 
     time = Time.now
@@ -252,7 +276,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     events = get_log_events(log_group_name, log_stream_name)
     assert_equal(1, events.size)
     assert_equal(time.to_i * 1000, events[0].timestamp)
-    assert_equal('message1 logs1', events[0].message)
+    assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
   end
 
   private

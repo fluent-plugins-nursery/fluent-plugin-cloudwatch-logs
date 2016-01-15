@@ -17,6 +17,8 @@ module Fluent
     config_param :use_tag_as_stream, :bool, :default => false # TODO: Rename to use_tag_as_stream_name ?
     config_param :log_group_name_key, :string, :default => nil
     config_param :log_stream_name_key, :string, :default => nil
+    config_param :remove_log_group_name_key, :bool, :default => false
+    config_param :remove_log_stream_name_key, :bool, :default => false
     config_param :http_proxy, :string, default: nil
 
     MAX_EVENTS_SIZE = 1_048_576
@@ -65,7 +67,11 @@ module Fluent
                 when @use_tag_as_group
                   tag
                 when @log_group_name_key
-                  record[@log_group_name_key]
+                  if @remove_log_group_name_key
+                    record.delete(@log_group_name_key)
+                  else
+                    record[@log_group_name_key]
+                  end
                 else
                   @log_group_name
                 end
@@ -74,7 +80,11 @@ module Fluent
                  when @use_tag_as_stream
                    tag
                  when @log_stream_name_key
-                   record[@log_stream_name_key]
+                   if @remove_log_stream_name_key
+                     record.delete(@log_stream_name_key)
+                   else
+                     record[@log_stream_name_key]
+                   end
                  else
                    @log_stream_name
                  end
