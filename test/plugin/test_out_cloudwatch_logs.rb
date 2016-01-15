@@ -43,7 +43,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
@@ -61,7 +61,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'これは日本語です'.force_encoding('UTF-8')}, time.to_i)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(1, events.size)
@@ -79,7 +79,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(3, events.size)
@@ -104,7 +104,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
@@ -128,7 +128,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
@@ -142,7 +142,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver(<<-EOC)
-    #{default_config}
+    #{default_config([:log_stream_name])}
     message_keys message,cloudwatch
     use_tag_as_group true
     EOC
@@ -152,7 +152,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events(fluentd_tag)
     assert_equal(2, events.size)
@@ -166,7 +166,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver(<<-EOC)
-    #{default_config}
+    #{default_config([:log_group_name])}
     message_keys message,cloudwatch
     use_tag_as_stream true
     EOC
@@ -176,7 +176,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events(log_group_name, fluentd_tag)
     assert_equal(2, events.size)
@@ -199,7 +199,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
@@ -223,7 +223,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
     d.run
 
-    sleep 20
+    sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
@@ -233,17 +233,42 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{(time+1).strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[1].message)
   end
 
-  private
-  def default_config
-    <<-EOC
-    type cloudwatch_logs
-    log_group_name #{log_group_name}
-    log_stream_name #{log_stream_name}
-    auto_create_stream true
-    #{aws_key_id}
-    #{aws_sec_key}
-    #{region}
+  def test_log_group_name_key_and_log_stream_name_key
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config([])}
+    message_keys message,cloudwatch
+    log_group_name_key group_name_key
+    log_stream_name_key stream_name_key
     EOC
+
+    time = Time.now
+    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => log_stream_name}, time.to_i)
+    d.run
+
+    sleep 10
+
+    events = get_log_events(log_group_name, log_stream_name)
+    assert_equal(1, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal('message1 logs1', events[0].message)
+  end
+
+  private
+  def default_config(with = [:log_group_name, :log_stream_name])
+    body = <<-EOC
+type cloudwatch_logs
+auto_create_stream true
+#{aws_key_id}
+#{aws_sec_key}
+#{region}
+    EOC
+
+    body << "log_group_name #{log_group_name}\n" if with.include?(:log_group_name)
+    body << "log_stream_name #{log_stream_name}\n" if with.include?(:log_stream_name)
+
+    body
   end
 
   def create_driver(conf = default_config)

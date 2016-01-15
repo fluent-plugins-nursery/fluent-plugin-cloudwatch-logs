@@ -13,8 +13,10 @@ module Fluent
     config_param :message_keys, :string, :default => nil
     config_param :max_message_length, :integer, :default => nil
     config_param :max_events_per_batch, :integer, :default => 10000
-    config_param :use_tag_as_group, :bool, :default => false
-    config_param :use_tag_as_stream, :bool, :default => false
+    config_param :use_tag_as_group, :bool, :default => false  # TODO: Rename to use_tag_as_group_name ?
+    config_param :use_tag_as_stream, :bool, :default => false # TODO: Rename to use_tag_as_stream_name ?
+    config_param :log_group_name_key, :string, :default => nil
+    config_param :log_stream_name_key, :string, :default => nil
     config_param :http_proxy, :string, default: nil
 
     MAX_EVENTS_SIZE = 1_048_576
@@ -27,6 +29,18 @@ module Fluent
       super
 
       require 'aws-sdk-core'
+    end
+
+    def configure(conf)
+      super
+
+      unless [conf['log_group_name'], conf['use_tag_as_group'], conf['log_group_name_key']].compact.size == 1
+        raise ConfigError, "Set only one of log_group_name, use_tag_as_group and log_group_name_key"
+      end
+
+      unless [conf['log_stream_name'], conf['use_tag_as_stream'], conf['log_stream_name_key']].compact.size == 1
+        raise ConfigError, "Set only one of log_stream_name, use_tag_as_stream and log_stream_name_key"
+      end
     end
 
     def start
@@ -47,10 +61,27 @@ module Fluent
     def write(chunk)
       events = []
       chunk.enum_for(:msgpack_each).chunk {|tag, time, record|
-        tag
-      }.each {|tag, rs|
-        group_name = @use_tag_as_group ? tag : @log_group_name
-        stream_name = @use_tag_as_stream ? tag : @log_stream_name
+        group = case
+                when @use_tag_as_group
+                  tag
+                when @log_group_name_key
+                  record[@log_group_name_key]
+                else
+                  @log_group_name
+                end
+
+        stream = case
+                 when @use_tag_as_stream
+                   tag
+                 when @log_stream_name_key
+                   record[@log_stream_name_key]
+                 else
+                   @log_stream_name
+                 end
+
+        [group, stream]
+      }.each {|group_stream, rs|
+        group_name, stream_name = group_stream
 
         unless log_group_exists?(group_name)
           if @auto_create_stream
