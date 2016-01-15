@@ -75,6 +75,10 @@ Fetch sample log from CloudWatch Logs:
   #use_tag_as_stream false
   #include_time_key true
   #localtime true
+  #log_group_name_key group_name_key
+  #log_stream_name_key stream_name_key
+  #remove_log_group_name_key true
+  #remove_log_stream_name_key true
 </match>
 ```
 
@@ -88,6 +92,10 @@ Fetch sample log from CloudWatch Logs:
 * `use_tag_as_stream`: to use tag as a stream name
 * `include_time_key`: include time key as part of the log entry (defaults to UTC)
 * `localtime`: use localtime timezone for `include_time_key` output (overrides UTC default)
+* `log_group_name_key`: use specified field of records as log group name
+* `log_stream_name_key`: use specified field of records as log stream name
+* `remove_log_group_name_key`: remove field specified by `log_group_name_key`
+* `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
 
 ### in_cloudwatch_logs
 
