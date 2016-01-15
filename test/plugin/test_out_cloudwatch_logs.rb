@@ -97,6 +97,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d = create_driver(<<-EOC)
     #{default_config}
     message_keys message,cloudwatch
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
     EOC
 
     time = Time.now
@@ -121,6 +123,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     #{default_config}
     message_keys message,cloudwatch
     max_message_length 10
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
     EOC
 
     time = Time.now
@@ -142,9 +146,10 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver(<<-EOC)
-    #{default_config([:log_stream_name])}
+    #{default_config}
     message_keys message,cloudwatch
     use_tag_as_group true
+    log_stream_name #{log_stream_name}
     EOC
 
     time = Time.now
@@ -166,9 +171,10 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver(<<-EOC)
-    #{default_config([:log_group_name])}
+    #{default_config}
     message_keys message,cloudwatch
     use_tag_as_stream true
+    log_group_name #{log_group_name}
     EOC
 
     time = Time.now
@@ -192,6 +198,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d = create_driver(<<-EOC)
     #{default_config}
     include_time_key true
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
     EOC
 
     time = Time.now
@@ -216,6 +224,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     #{default_config}
     include_time_key true
     localtime true
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
     EOC
 
     time = Time.now
@@ -237,7 +247,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver(<<-EOC)
-    #{default_config([])}
+    #{default_config}
     log_group_name_key group_name_key
     log_stream_name_key stream_name_key
     EOC
@@ -260,7 +270,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver(<<-EOC)
-    #{default_config([])}
+    #{default_config}
     log_group_name_key group_name_key
     log_stream_name_key stream_name_key
     remove_log_group_name_key true
@@ -280,22 +290,24 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   end
 
   private
-  def default_config(with = [:log_group_name, :log_stream_name])
-    body = <<-EOC
+  def default_config
+    <<-EOC
 type cloudwatch_logs
 auto_create_stream true
 #{aws_key_id}
 #{aws_sec_key}
 #{region}
     EOC
-
-    body << "log_group_name #{log_group_name}\n" if with.include?(:log_group_name)
-    body << "log_stream_name #{log_stream_name}\n" if with.include?(:log_stream_name)
-
-    body
   end
 
-  def create_driver(conf = default_config)
+  def create_driver(conf = nil)
+    unless conf
+      conf = <<-EOC
+#{default_config}
+log_group_name #{log_group_name}
+log_stream_name #{log_stream_name}
+      EOC
+    end
     Fluent::Test::BufferedOutputTestDriver.new(Fluent::CloudwatchLogsOutput, fluentd_tag).configure(conf)
   end
 end
