@@ -111,7 +111,7 @@ module Fluent
       }
       request[:next_token] = next_token if next_token
       response = @logs.get_log_events(request)
-      store_next_token(response.next_forward_token)
+      store_next_token(response.next_forward_token, log_stream_name)
 
       response.events
     end
