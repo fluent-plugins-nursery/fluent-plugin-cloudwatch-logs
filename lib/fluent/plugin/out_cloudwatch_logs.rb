@@ -1,8 +1,11 @@
 module Fluent
+  require 'fluent/mixin/config_placeholders'
+
   class CloudwatchLogsOutput < BufferedOutput
     Plugin.register_output('cloudwatch_logs', self)
 
     include Fluent::SetTimeKeyMixin
+    include Fluent::Mixin::ConfigPlaceholders
 
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
@@ -31,6 +34,10 @@ module Fluent
       super
 
       require 'aws-sdk-core'
+    end
+
+    def placeholders
+      [:percent]
     end
 
     def configure(conf)

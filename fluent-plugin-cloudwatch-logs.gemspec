@@ -19,6 +19,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'fluentd'
   spec.add_dependency 'aws-sdk-core', '>= 2.0.7'
+  spec.add_dependency 'fluent-mixin-config-placeholders', '>= 0.2.0'
 
   spec.add_development_dependency "bundler", "~> 1.6"
   spec.add_development_dependency "rake"
