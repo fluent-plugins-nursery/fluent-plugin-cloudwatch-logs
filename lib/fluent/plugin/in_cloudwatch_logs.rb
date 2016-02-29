@@ -1,6 +1,10 @@
 module Fluent
+  require 'fluent/mixin/config_placeholders'
+
   class CloudwatchLogsInput < Input
     Plugin.register_input('cloudwatch_logs', self)
+
+    include Fluent::Mixin::ConfigPlaceholders
 
     # Define `router` method of v0.12 to support v0.10.57 or earlier
     unless method_defined?(:router)
@@ -22,6 +26,10 @@ module Fluent
       super
 
       require 'aws-sdk-core'
+    end
+
+    def placeholders
+      [:percent]
     end
 
     def configure(conf)
