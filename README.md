@@ -116,6 +116,8 @@ Fetch sample log from CloudWatch Logs:
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 
+This plugin uses [fluent-mixin-config-placeholders](https://github.com/tagomoris/fluent-mixin-config-placeholders) and you can use addtional variables such as %{hostname}, %{uuid}, etc. These variables are useful to put hostname in `log_stream_name`.
+
 ## Test
 
 Set credentials:
