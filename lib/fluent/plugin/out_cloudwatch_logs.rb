@@ -25,6 +25,7 @@ module Fluent
     config_param :http_proxy, :string, default: nil
 
     MAX_EVENTS_SIZE = 1_048_576
+    EVENT_HEADER_SIZE = 26
 
     unless method_defined?(:log)
       define_method(:log) { $log }
@@ -158,25 +159,30 @@ module Fluent
 
       # The maximum batch size is 1,048,576 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
       # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+      total_bytesize = 0
       while event = events.shift
         new_chunk = chunk + [event]
+        event_bytesize = event[:message].bytesize + EVENT_HEADER_SIZE
+
         chunk_span_too_big = new_chunk.size > 1 && new_chunk[-1][:timestamp] - new_chunk[0][:timestamp] >= 1000 * 60 * 60 * 24
-        chunk_too_big = new_chunk.inject(0) {|sum, e| sum + e[:message].bytesize + 26 } > MAX_EVENTS_SIZE
+        chunk_too_big = total_bytesize + event_bytesize > MAX_EVENTS_SIZE
         chunk_too_long = @max_events_per_batch && chunk.size >= @max_events_per_batch
         if chunk_too_big or chunk_span_too_big or chunk_too_long
-          put_events(group_name, stream_name, chunk)
+          put_events(group_name, stream_name, chunk, total_bytesize)
           chunk = [event]
+          total_bytesize = event_bytesize
         else
           chunk << event
+          total_bytesize += event_bytesize
         end
       end
 
       unless chunk.empty?
-        put_events(group_name, stream_name, chunk)
+        put_events(group_name, stream_name, chunk, total_bytesize)
       end
     end
 
-    def put_events(group_name, stream_name, events)
+    def put_events(group_name, stream_name, events, events_bytesize)
       args = {
         log_events: events,
         log_group_name: group_name,
@@ -184,6 +190,13 @@ module Fluent
       }
       token = next_sequence_token(group_name, stream_name)
       args[:sequence_token] = token if token
+
+      log.debug "Calling PutLogEvents API", {
+        "group" => group_name,
+        "stream" => stream_name,
+        "events_count" => events.size,
+        "events_bytesize" => events_bytesize,
+      }
 
       response = @logs.put_log_events(args)
       store_next_sequence_token(group_name, stream_name, response.next_sequence_token)

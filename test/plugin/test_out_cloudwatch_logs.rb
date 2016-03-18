@@ -51,6 +51,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('{"cloudwatch":"logs1"}', events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('{"cloudwatch":"logs2"}', events[1].message)
+
+    assert_match(/Calling PutLogEvents API/, d.instance.log.logs[0])
   end
 
   def test_write_utf8
