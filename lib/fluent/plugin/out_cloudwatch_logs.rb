@@ -214,6 +214,7 @@ module Fluent
             return
           else
             sleep_sec = @put_log_events_retry_wait * (2 ** retry_count)
+            sleep_sec += sleep_sec * (0.25 * (rand - 0.5))
             log.warn "failed to PutLogEvents", {
               "next_retry" => Time.now + sleep_sec,
               "error_class" => err.class.to_s,
