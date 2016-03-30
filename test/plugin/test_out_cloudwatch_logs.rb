@@ -291,6 +291,49 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
   end
 
+  def test_retrying_on_throttling_exception
+    resp = mock()
+    resp.expects(:next_sequence_token)
+    client = Aws::CloudWatchLogs::Client.new
+    client.stubs(:put_log_events).
+      raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")).then.returns(resp)
+
+    time = Time.now
+    d = create_driver
+    d.instance.instance_variable_set(:@logs, client)
+    d.emit({'message' => 'message1'}, time.to_i)
+    d.run
+
+    assert_match(/Calling PutLogEvents/, d.instance.log.logs[0])
+    assert_match(/failed to PutLogEvents/, d.instance.log.logs[1])
+    assert_match(/Calling PutLogEvents/, d.instance.log.logs[2])
+    assert_match(/retry succeeded/, d.instance.log.logs[3])
+  end
+
+  def test_retrying_on_throttling_exception_and_throw_away
+    client = Aws::CloudWatchLogs::Client.new
+    client.stubs(:put_log_events).
+      raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+
+    time = Time.now
+    d = create_driver(<<-EOC)
+#{default_config}
+log_group_name #{log_group_name}
+log_stream_name #{log_stream_name}
+put_log_events_retry_limit 1
+    EOC
+    d.instance.instance_variable_set(:@logs, client)
+    d.emit({'message' => 'message1'}, time.to_i)
+    d.run
+
+    assert_match(/Calling PutLogEvents/, d.instance.log.logs[0])
+    assert_match(/failed to PutLogEvents/, d.instance.log.logs[1])
+    assert_match(/Calling PutLogEvents/, d.instance.log.logs[2])
+    assert_match(/failed to PutLogEvents/, d.instance.log.logs[3])
+    assert_match(/Calling PutLogEvents/, d.instance.log.logs[4])
+    assert_match(/failed to PutLogEvents and throwing away/, d.instance.log.logs[5])
+  end
+
   private
   def default_config
     <<-EOC

@@ -79,6 +79,9 @@ Fetch sample log from CloudWatch Logs:
   #log_stream_name_key stream_name_key
   #remove_log_group_name_key true
   #remove_log_stream_name_key true
+  #put_log_events_retry_wait 1s
+  #put_log_events_retry_limit 17
+  #put_log_events_disable_retry_limit false
 </match>
 ```
 
@@ -96,6 +99,9 @@ Fetch sample log from CloudWatch Logs:
 * `log_stream_name_key`: use specified field of records as log stream name
 * `remove_log_group_name_key`: remove field specified by `log_group_name_key`
 * `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
+* `put_log_events_retry_wait`: time before retrying PutLogEvents (retry interval increases exponentially like `put_log_events_retry_wait * (2 ^ retry_count)`)
+* `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)
+* `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
 
 ### in_cloudwatch_logs
 
