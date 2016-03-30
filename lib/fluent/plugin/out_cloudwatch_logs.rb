@@ -278,7 +278,7 @@ module Fluent
     def find_log_stream(group_name, stream_name)
       next_token = nil
       loop do
-        response = @logs.describe_log_streams(log_group_name: group_name, next_token: next_token)
+        response = @logs.describe_log_streams(log_group_name: group_name, log_stream_name_prefix: stream_name, next_token: next_token)
         if (log_stream = response.log_streams.find {|i| i.log_stream_name == stream_name })
           return log_stream
         end
