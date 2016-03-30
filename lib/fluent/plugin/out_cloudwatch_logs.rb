@@ -23,6 +23,9 @@ module Fluent
     config_param :remove_log_group_name_key, :bool, :default => false
     config_param :remove_log_stream_name_key, :bool, :default => false
     config_param :http_proxy, :string, default: nil
+    config_param :put_log_events_retry_wait, :time, default: 1.0
+    config_param :put_log_events_retry_limit, :integer, default: 17
+    config_param :put_log_events_disable_retry_limit, :bool, default: false
 
     MAX_EVENTS_SIZE = 1_048_576
     EVENT_HEADER_SIZE = 26
@@ -60,7 +63,7 @@ module Fluent
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
       options[:http_proxy] = @http_proxy if @http_proxy
-      @logs = Aws::CloudWatchLogs::Client.new(options)
+      @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
     end
 
@@ -191,14 +194,41 @@ module Fluent
       token = next_sequence_token(group_name, stream_name)
       args[:sequence_token] = token if token
 
-      log.debug "Calling PutLogEvents API", {
-        "group" => group_name,
-        "stream" => stream_name,
-        "events_count" => events.size,
-        "events_bytesize" => events_bytesize,
-      }
+      response = nil
+      retry_count = 0
+      until response
+        log.debug "Calling PutLogEvents API", {
+          "group" => group_name,
+          "stream" => stream_name,
+          "events_count" => events.size,
+          "events_bytesize" => events_bytesize,
+        }
+        begin
+          response = @logs.put_log_events(args)
+        rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
+          if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
+            log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
+              "error_class" => err.class.to_s,
+              "error" => err.message,
+            }
+            return
+          else
+            sleep_sec = @put_log_events_retry_wait * (2 ** retry_count)
+            log.warn "failed to PutLogEvents", {
+              "next_retry" => Time.now + sleep_sec,
+              "error_class" => err.class.to_s,
+              "error" => err.message,
+            }
+            sleep(sleep_sec)
+            retry_count += 1
+          end
+        end
+      end
 
-      response = @logs.put_log_events(args)
+      if 0 < retry_count
+        log.warn "retry succeeded"
+      end
+
       store_next_sequence_token(group_name, stream_name, response.next_sequence_token)
     end
 
