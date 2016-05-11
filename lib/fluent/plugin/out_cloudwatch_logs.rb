@@ -261,7 +261,7 @@ module Fluent
     def log_group_exists?(group_name)
       if @sequence_tokens[group_name]
         true
-      elsif @logs.describe_log_groups.any? {|page| page.log_groups.any? {|i| i.log_group_name == group_name } }
+      elsif @logs.describe_log_groups({log_group_name_prefix: group_name}).log_groups != []
         @sequence_tokens[group_name] = {}
         true
       else
