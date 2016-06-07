@@ -254,18 +254,37 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     log_stream_name_key stream_name_key
     EOC
 
-    record = {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => log_stream_name}
+    stream1 = new_log_stream
+    stream2 = new_log_stream
+
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => stream1},
+      {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => stream2},
+      {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => stream1},
+    ]
 
     time = Time.now
-    d.emit(record, time.to_i)
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
     d.run
+
+    # Call API once for each stream
+    assert_equal(2, d.instance.log.logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
 
     sleep 10
 
-    events = get_log_events(log_group_name, log_stream_name)
-    assert_equal(1, events.size)
+    events = get_log_events(log_group_name, stream1)
+    assert_equal(2, events.size)
     assert_equal(time.to_i * 1000, events[0].timestamp)
-    assert_equal(record, JSON.parse(events[0].message))
+    assert_equal((time.to_i + 2) * 1000, events[1].timestamp)
+    assert_equal(records[0], JSON.parse(events[0].message))
+    assert_equal(records[2], JSON.parse(events[1].message))
+
+    events = get_log_events(log_group_name, stream2)
+    assert_equal(1, events.size)
+    assert_equal((time.to_i + 1) * 1000, events[0].timestamp)
+    assert_equal(records[1], JSON.parse(events[0].message))
   end
 
   def test_remove_log_group_name_key_and_remove_log_stream_name_key
