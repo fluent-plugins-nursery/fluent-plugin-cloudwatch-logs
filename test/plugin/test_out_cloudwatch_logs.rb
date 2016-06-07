@@ -334,6 +334,19 @@ put_log_events_retry_limit 1
     assert_match(/failed to PutLogEvents and throwing away/, d.instance.log.logs[5])
   end
 
+  def test_too_large_event
+    time = Time.now
+    d = create_driver(<<-EOC)
+#{default_config}
+log_group_name #{log_group_name}
+log_stream_name #{log_stream_name}
+    EOC
+    d.emit({'message' => '*' * 256 * 1024}, time.to_i)
+    d.run
+
+    assert_match(/Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144$/, d.instance.log.logs[0])
+  end
+
   private
   def default_config
     <<-EOC

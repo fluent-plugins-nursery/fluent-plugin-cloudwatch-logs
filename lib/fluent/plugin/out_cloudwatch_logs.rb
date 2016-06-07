@@ -28,6 +28,7 @@ module Fluent
     config_param :put_log_events_disable_retry_limit, :bool, default: false
 
     MAX_EVENTS_SIZE = 1_048_576
+    MAX_EVENT_SIZE = 256 * 1024
     EVENT_HEADER_SIZE = 26
 
     unless method_defined?(:log)
@@ -164,8 +165,13 @@ module Fluent
       # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
       total_bytesize = 0
       while event = events.shift
-        new_chunk = chunk + [event]
         event_bytesize = event[:message].bytesize + EVENT_HEADER_SIZE
+        if MAX_EVENT_SIZE < event_bytesize
+          log.warn "Log event is discarded because it is too large: #{event_bytesize} bytes exceeds limit of #{MAX_EVENT_SIZE}"
+          break
+        end
+
+        new_chunk = chunk + [event]
 
         chunk_span_too_big = new_chunk.size > 1 && new_chunk[-1][:timestamp] - new_chunk[0][:timestamp] >= 1000 * 60 * 60 * 24
         chunk_too_big = total_bytesize + event_bytesize > MAX_EVENTS_SIZE
