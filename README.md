@@ -146,6 +146,10 @@ Or, If you do not want to use IAM roll or ENV(this is just like writing to confi
 $ rake aws_key_id=YOUR_ACCESS_KEY aws_sec_key=YOUR_SECRET_KEY region=us-east-1 test
 ```
 
+## Caution
+
+- If an event message exceeds API limit (256KB), the event will be discarded.
+
 ## TODO
 
 * out_cloudwatch_logs
