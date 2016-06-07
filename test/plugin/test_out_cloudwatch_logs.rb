@@ -269,9 +269,10 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
     d.run
 
-    puts d.instance.log.logs
+    # Call API once for each stream
+    assert_equal(2, d.instance.log.logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
 
-    sleep 60
+    sleep 10
 
     events = get_log_events(log_group_name, stream1)
     assert_equal(2, events.size)

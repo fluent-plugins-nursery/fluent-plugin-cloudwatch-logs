@@ -1,6 +1,7 @@
 require 'test/unit'
 require 'mocha/test_unit'
 require 'fluent/test'
+require 'securerandom'
 
 require 'aws-sdk-core'
 
@@ -38,7 +39,8 @@ module CloudwatchLogsTestHelper
   end
 
   def new_log_stream(log_stream_name_prefix = nil)
-    @log_stream_name = log_stream_name_prefix ? log_stream_name_prefix + Time.now.to_f.to_s : Time.now.to_f.to_s
+    uuid = SecureRandom.uuid
+    @log_stream_name = log_stream_name_prefix ? log_stream_name_prefix + uuid : uuid
   end
 
   def clear_log_group

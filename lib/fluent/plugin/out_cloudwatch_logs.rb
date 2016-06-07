@@ -73,7 +73,7 @@ module Fluent
     end
 
     def write(chunk)
-      chunk.enum_for(:msgpack_each).chunk {|tag, time, record|
+      chunk.enum_for(:msgpack_each).group_by {|tag, time, record|
         group = case
                 when @use_tag_as_group
                   tag
