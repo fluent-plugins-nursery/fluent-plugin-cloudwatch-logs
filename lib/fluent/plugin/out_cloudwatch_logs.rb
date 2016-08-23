@@ -126,15 +126,12 @@ module Fluent
         rs.each do |t, time, record|
           time_ms = time * 1000
 
+          scrub_record!(record)
           if @message_keys
             message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
           else
             message = record.to_json
           end
-
-          # CloudWatchLogs API only accepts valid UTF-8 strings
-          # so we should encode the message to UTF-8
-          message.encode('UTF-8', :invalid => :replace)
 
           if @max_message_length
             message = message.slice(0, @max_message_length)
@@ -150,6 +147,17 @@ module Fluent
     end
 
     private
+    def scrub_record!(record)
+      case record
+      when Hash
+        record.each_value {|v| scrub_record!(v) }
+      when Array
+        record.each {|v| scrub_record!(v) }
+      when String
+        record.scrub!
+      end
+    end
+
     def next_sequence_token(group_name, stream_name)
       @sequence_tokens[group_name][stream_name]
     end
