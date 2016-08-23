@@ -366,6 +366,25 @@ log_stream_name #{log_stream_name}
     assert_match(/Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144$/, d.instance.log.logs[0])
   end
 
+  def test_scrub_record
+    record = {
+      "hash" => {
+        "str" => "\xAE",
+      },
+      "array" => [
+        "\xAE",
+      ],
+      "str" => "\xAE",
+    }
+
+    d = create_driver
+    d.instance.send(:scrub_record!, record)
+
+    assert_equal("�", record["hash"]["str"])
+    assert_equal("�", record["array"][0])
+    assert_equal("�", record["str"])
+  end
+
   private
   def default_config
     <<-EOC
