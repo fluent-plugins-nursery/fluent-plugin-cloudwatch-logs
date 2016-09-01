@@ -68,7 +68,7 @@ module Fluent
 
     def store_next_token(token, log_stream_name = nil)
       state_file = @state_file
-      state_file = "#{@state_file}_#{log_stream_name}" if log_stream_name
+      state_file = "#{@state_file}_#{log_stream_name.gsub(File::SEPARATOR, '-')}" if log_stream_name
       open(state_file, 'w') do |f|
         f.write token
       end
