@@ -90,13 +90,13 @@ module Fluent
               log_stream_name = log_stram.log_stream_name
               events = get_events(log_stream_name)
               events.each do |event|
-                emit(event)
+                emit(log_stream_name, event)
               end
             end
           else
             events = get_events(@log_stream_name)
             events.each do |event|
-              emit(event)
+              emit(@log_stream_name, event)
             end
           end
         end
@@ -104,14 +104,14 @@ module Fluent
       end
     end
 
-    def emit(event)
+    def emit(stream, event)
       if @parser
         record = @parser.parse(event.message)
-        router.emit(@tag, record[0], record[1])
+        router.emit("#{@tag}.#{stream}", record[0], record[1])
       else
         time = (event.timestamp / 1000).floor
         record = JSON.parse(event.message)
-        router.emit(@tag, time, record)
+        router.emit("#{@tag}.#{stream}", time, record)
       end
     end
 
