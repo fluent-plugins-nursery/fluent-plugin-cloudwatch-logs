@@ -121,6 +121,9 @@ Fetch sample log from CloudWatch Logs:
 * `log_stream_name`: name of log stream to fetch logs
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `state_file`: file to store current state (e.g. next\_forward\_token)
+* `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
+* `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
+* `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
 
 This plugin uses [fluent-mixin-config-placeholders](https://github.com/tagomoris/fluent-mixin-config-placeholders) and you can use addtional variables such as %{hostname}, %{uuid}, etc. These variables are useful to put hostname in `log_stream_name`.
 
@@ -149,6 +152,100 @@ $ rake aws_key_id=YOUR_ACCESS_KEY aws_sec_key=YOUR_SECRET_KEY region=us-east-1 t
 ## Caution
 
 - If an event message exceeds API limit (256KB), the event will be discarded.
+
+## Cross-Account Operation
+In order to have an instance of this plugin running in one AWS account to fetch logs from another account cross-account IAM authentication is required. Whilst this can be accomplished by configuring specific instances of the plugin manually with credentials for the source account in question this is not desirable for a number of reasons.
+
+In this case IAM can be used to allow the fluentd instance in one account ("A") to ingest Cloudwatch logs from another ("B") via the following mechanic:
+
+* plugin instance running in account "A" has an IAM instance role assigned to the underlying EC2 instance
+* The IAM instance role and associated policies permit the EC2 instance to assume a role in another account
+* An IAM role in account "B" and associated policies allow read access to the Cloudwatch Logs service, as appropriate.
+
+### IAM Detail: Consuming Account "A"
+
+* Create an IAM role `cloudwatch`
+* Attach a policy to allow the role holder to assume another role (where `ACCOUNT-B` is substituted for the appropriate account number):
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:*"
+            ],
+            "Resource": [
+                "arn:aws:iam::ACCOUNT-B:role/fluentd"
+            ]
+        }
+    ]
+}
+```
+
+* Ensure the EC2 instance on which this plugin is executing as role `cloudwatch` as its assigned IAM instance role.
+
+### IAM Detail: Log Source Account "B"
+
+* Create an IAM role `fluentd`
+* Ensure the `fluentd` role as account "A" as a trusted entity:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::ACCOUNT-A:root"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+* Attach a policy:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:DescribeDestinations",
+                "logs:DescribeExportTasks",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:DescribeMetricFilters",
+                "logs:DescribeSubscriptionFilters",
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents"
+            ],
+            "Resource": [
+                "arn:aws:logs:eu-west-1:ACCOUNT-B:log-group:LOG_GROUP_NAME_FOR_CONSUMPTION:*"
+            ]
+        }
+    ]
+}
+```
+
+### Configuring the plugin for STS authentication
+```
+<source>
+  type cloudwatch_logs
+  region us-east-1      # You must supply a region
+  aws_use_sts true
+  aws_sts_role_arn arn:aws:iam::ACCOUNT-B:role/fluentd
+  log_group_name LOG_GROUP_NAME_FOR_CONSUMPTION
+  log_stream_name SOME_PREFIX
+  use_log_stream_name_prefix true
+  state_file /path/to/state_file
+  format /(?<message>.+)/
+</source>
+```
 
 ## TODO
 
