@@ -53,8 +53,9 @@ module Fluent
         )
       else
         options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
-        @logs = Aws::CloudWatchLogs::Client.new(options)
       end
+
+      @logs = Aws::CloudWatchLogs::Client.new(options)
 
       @finished = false
       @thread = Thread.new(&method(:run))
