@@ -220,6 +220,10 @@ module Fluent
         begin
           response = @logs.put_log_events(args)
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException
+          log.warn "updating upload sequence token because InvalidSequenceTokenException occured", {
+            "log_group" => group_name,
+            "log_stream" => stream_name,
+          }
           log_stream = find_log_stream(group_name, stream_name)
           store_next_sequence_token(group_name, stream_name, log_stream.upload_sequence_token)
           retry
