@@ -1,4 +1,5 @@
 module Fluent
+  require 'fluent/input'
   require 'fluent/mixin/config_placeholders'
 
   class CloudwatchLogsInput < Input
