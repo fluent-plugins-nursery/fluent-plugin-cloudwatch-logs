@@ -73,7 +73,14 @@ module Fluent
     end
 
     def write(chunk)
-      chunk.enum_for(:msgpack_each).group_by {|tag, time, record|
+      chunk.enum_for(:msgpack_each).select {|tag, time, record|
+        if record.nil?
+          log.warn "record is nil (tag=#{tag})"
+          false
+        else
+          true
+        end
+      }.group_by {|tag, time, record|
         group = case
                 when @use_tag_as_group
                   tag
@@ -103,6 +110,11 @@ module Fluent
         [group, stream]
       }.each {|group_stream, rs|
         group_name, stream_name = group_stream
+
+        if stream_name.nil?
+          log.warn "stream_name is nil (group_name=#{group_name})"
+          next
+        end
 
         unless log_group_exists?(group_name)
           if @auto_create_stream
@@ -309,6 +321,7 @@ module Fluent
           break
         end
         next_token = response.next_token
+        sleep 0.1
       end
       nil
     end
