@@ -227,6 +227,12 @@ module Fluent
           log_stream = find_log_stream(group_name, stream_name)
           store_next_sequence_token(group_name, stream_name, log_stream.upload_sequence_token)
           retry
+        rescue Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException
+          log.warn "discard logs beacuse DataAlreadyAcceptedException", {
+            "log_group" => group_name,
+            "log_stream" => stream_name,
+          }
+          return
         rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
           if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
             log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
