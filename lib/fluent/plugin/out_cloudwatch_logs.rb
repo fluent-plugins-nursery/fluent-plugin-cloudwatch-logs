@@ -218,7 +218,6 @@ module Fluent
         log_stream_name: stream_name,
       }
       token = next_sequence_token(group_name, stream_name)
-      args[:sequence_token] = token if token
 
       response = nil
       retry_count = 0
@@ -228,17 +227,21 @@ module Fluent
           "stream" => stream_name,
           "events_count" => events.size,
           "events_bytesize" => events_bytesize,
+          "sequence_token" => token,
         }
+
+        args[:sequence_token] = token if token
         begin
           response = @logs.put_log_events(args)
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException
+          sleep 1 # to avoid too many API calls
+          log_stream = find_log_stream(group_name, stream_name)
+          token = log_stream.upload_sequence_token
           log.warn "updating upload sequence token because InvalidSequenceTokenException occured", {
             "log_group" => group_name,
             "log_stream" => stream_name,
+            "new_sequence_token" => token,
           }
-          log_stream = find_log_stream(group_name, stream_name)
-          store_next_sequence_token(group_name, stream_name, log_stream.upload_sequence_token)
-          retry
         rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
           if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
             log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
