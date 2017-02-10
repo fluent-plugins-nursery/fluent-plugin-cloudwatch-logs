@@ -233,11 +233,12 @@ module Fluent
         args[:sequence_token] = token if token
         begin
           response = @logs.put_log_events(args)
-        rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException
+        rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
           log_stream = find_log_stream(group_name, stream_name)
           token = log_stream.upload_sequence_token
-          log.warn "updating upload sequence token because InvalidSequenceTokenException occured", {
+          log.warn "updating upload sequence token forcefully because unrecoverable error occured", {
+            "error" => err,
             "log_group" => group_name,
             "log_stream" => stream_name,
             "new_sequence_token" => token,
