@@ -72,7 +72,7 @@ module Fluent
     private
     def configure_parser(conf)
       if conf['format']
-        @parser = TextParser.new
+        @parser = Fluent::TextParser.new
         @parser.configure(conf)
       end
     end
