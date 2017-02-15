@@ -1,4 +1,5 @@
 require 'fluent/input'
+require 'fluent/parser'
 
 module Fluent
   require 'fluent/mixin/config_placeholders'
