@@ -1,13 +1,16 @@
+# coding: utf-8
 require 'test_helper'
 require 'fileutils'
+require 'fluent/test/driver/output'
+require 'fluent/test/helpers'
 
 class CloudwatchLogsOutputTest < Test::Unit::TestCase
   include CloudwatchLogsTestHelper
+  include Fluent::Test::Helpers
 
   def setup
     Fluent::Test.setup
     require 'fluent/plugin/out_cloudwatch_logs'
-
   end
 
   def teardown
@@ -38,13 +41,15 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     new_log_stream
 
     d = create_driver
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag, flush: true) do
+      d.feed(time, {'cloudwatch' => 'logs1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2'})
+    end
 
     sleep 10
 
+    logs = d.logs
     events = get_log_events
     assert_equal(2, events.size)
     assert_equal(time.to_i * 1000, events[0].timestamp)
@@ -52,16 +57,17 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('{"cloudwatch":"logs2"}', events[1].message)
 
-    assert_match(/Calling PutLogEvents API/, d.instance.log.logs[0])
+    assert(logs.any?{|log| log.include?("Calling PutLogEvents API") })
   end
 
   def test_write_utf8
     new_log_stream
 
     d = create_driver
-    time = Time.now
-    d.emit({'cloudwatch' => 'これは日本語です'.force_encoding('UTF-8')}, time.to_i)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, { 'cloudwatch' => 'これは日本語です'.force_encoding('UTF-8')})
+    end
 
     sleep 10
 
@@ -74,12 +80,18 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   def test_write_24h_apart
     new_log_stream
 
-    d = create_driver
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs0'}, time.to_i - 60 * 60 * 25)
-    d.emit({'cloudwatch' => 'logs1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
-    d.run
+    d = create_driver(<<-EOC)
+    #{default_config}
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
+    utc
+    EOC
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time - 60 * 60 * 25, {'cloudwatch' => 'logs0'})
+      d.feed(time, {'cloudwatch' => 'logs1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2'})
+    end
 
     sleep 10
 
@@ -103,10 +115,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     log_stream_name #{log_stream_name}
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
 
     sleep 10
 
@@ -129,10 +142,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     log_stream_name #{log_stream_name}
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
 
     sleep 10
 
@@ -154,10 +168,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     log_stream_name #{log_stream_name}
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
 
     sleep 10
 
@@ -179,10 +194,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     log_group_name #{log_group_name}
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2', 'message' => 'message2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
 
     sleep 10
 
@@ -202,21 +218,23 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     include_time_key true
     log_group_name #{log_group_name}
     log_stream_name #{log_stream_name}
+    utc
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2'})
+    end
 
     sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
     assert_equal(time.to_i * 1000, events[0].timestamp)
-    assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[0].message)
+    assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{Time.at(time.to_r).utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
-    assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{(time+1).utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[1].message)
+    assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{Time.at((time+1).to_r).utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[1].message)
   end
 
   def test_include_time_key_localtime
@@ -230,19 +248,20 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     log_stream_name #{log_stream_name}
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1'}, time.to_i)
-    d.emit({'cloudwatch' => 'logs2'}, time.to_i + 1)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2'})
+    end
 
     sleep 10
 
     events = get_log_events
     assert_equal(2, events.size)
     assert_equal(time.to_i * 1000, events[0].timestamp)
-    assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{time.strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[0].message)
+    assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{Time.at(time.to_r).strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
-    assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{(time+1).strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[1].message)
+    assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{Time.at((time+1).to_r).to_time.strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[1].message)
   end
 
   def test_log_group_name_key_and_log_stream_name_key
@@ -252,6 +271,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     #{default_config}
     log_group_name_key group_name_key
     log_stream_name_key stream_name_key
+    @log_level debug
     EOC
 
     stream1 = new_log_stream
@@ -263,14 +283,16 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => stream1},
     ]
 
-    time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time + i, record)
+      end
     end
-    d.run
 
+    logs = d.logs
     # Call API once for each stream
-    assert_equal(2, d.instance.log.logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(2, logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
 
     sleep 10
 
@@ -298,9 +320,10 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     remove_log_stream_name_key true
     EOC
 
-    time = Time.now
-    d.emit({'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => log_stream_name}, time.to_i)
-    d.run
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => log_stream_name})
+    end
 
     sleep 10
 
@@ -317,16 +340,17 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     client.stubs(:put_log_events).
       raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")).then.returns(resp)
 
-    time = Time.now
     d = create_driver
+    time = event_time
     d.instance.instance_variable_set(:@logs, client)
-    d.emit({'message' => 'message1'}, time.to_i)
-    d.run
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'message' => 'message1'})
+    end
 
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[0])
-    assert_match(/failed to PutLogEvents/, d.instance.log.logs[1])
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[2])
-    assert_match(/retry succeeded/, d.instance.log.logs[3])
+    logs = d.logs
+    assert_equal(2, logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(1, logs.select {|l| l =~ /failed to PutLogEvents/ }.size)
+    assert_equal(1, logs.select {|l| l =~ /retry succeeded/ }.size)
   end
 
   def test_retrying_on_throttling_exception_and_throw_away
@@ -334,36 +358,39 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     client.stubs(:put_log_events).
       raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
 
-    time = Time.now
+    time = Fluent::Engine.now
     d = create_driver(<<-EOC)
 #{default_config}
 log_group_name #{log_group_name}
 log_stream_name #{log_stream_name}
 put_log_events_retry_limit 1
+@log_level debug
     EOC
     d.instance.instance_variable_set(:@logs, client)
-    d.emit({'message' => 'message1'}, time.to_i)
-    d.run
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'message' => 'message1'})
+    end
 
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[0])
-    assert_match(/failed to PutLogEvents/, d.instance.log.logs[1])
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[2])
-    assert_match(/failed to PutLogEvents/, d.instance.log.logs[3])
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[4])
-    assert_match(/failed to PutLogEvents and throwing away/, d.instance.log.logs[5])
+    logs = d.logs
+    assert_equal(3, logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(3, logs.select {|l| l =~ /failed to PutLogEvents/ }.size)
+    assert_equal(1, logs.select {|l| l =~ /failed to PutLogEvents and discard logs/ }.size)
   end
 
   def test_too_large_event
-    time = Time.now
+    time = Fluent::Engine.now
     d = create_driver(<<-EOC)
 #{default_config}
 log_group_name #{log_group_name}
 log_stream_name #{log_stream_name}
+@log_level debug
     EOC
-    d.emit({'message' => '*' * 256 * 1024}, time.to_i)
-    d.run
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'message' => '*' * 256 * 1024})
+    end
 
-    assert_match(/Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144$/, d.instance.log.logs[0])
+    logs = d.logs
+    assert(logs.any?{|log| log.include?("Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144")})
   end
 
   def test_scrub_record
@@ -402,8 +429,9 @@ auto_create_stream true
 #{default_config}
 log_group_name #{log_group_name}
 log_stream_name #{log_stream_name}
+@log_level debug
       EOC
     end
-    Fluent::Test::BufferedOutputTestDriver.new(Fluent::CloudwatchLogsOutput, fluentd_tag).configure(conf)
+    Fluent::Test::Driver::Output.new(Fluent::Plugin::CloudwatchLogsOutput).configure(conf)
   end
 end
