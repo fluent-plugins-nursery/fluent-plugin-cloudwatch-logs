@@ -1,18 +1,11 @@
-require 'fluent/input'
-require 'fluent/parser'
+require 'fluent/plugin/input'
+require 'fluent/plugin/parser'
 
-module Fluent
-  require 'fluent/mixin/config_placeholders'
-
+module Fluent::Plugin
   class CloudwatchLogsInput < Input
-    Plugin.register_input('cloudwatch_logs', self)
+    Fluent::Plugin.register_input('cloudwatch_logs', self)
 
-    include Fluent::Mixin::ConfigPlaceholders
-
-    # Define `router` method of v0.12 to support v0.10.57 or earlier
-    unless method_defined?(:router)
-      define_method("router") { Engine }
-    end
+    helpers :parser, :thread, :compat_parameters
 
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
@@ -28,22 +21,24 @@ module Fluent
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
 
+    config_section :parse do
+      config_set_default :@type, 'none'
+    end
+
     def initialize
       super
 
       require 'aws-sdk-core'
     end
 
-    def placeholders
-      [:percent]
-    end
-
     def configure(conf)
+      compat_parameters_convert(conf, :parser)
       super
       configure_parser(conf)
     end
 
     def start
+      super
       options = {}
       options[:region] = @region if @region
       options[:http_proxy] = @http_proxy if @http_proxy
@@ -61,19 +56,18 @@ module Fluent
       @logs = Aws::CloudWatchLogs::Client.new(options)
 
       @finished = false
-      @thread = Thread.new(&method(:run))
+      thread_create(:in_cloudwatch_logs_runner, &method(:run))
     end
 
     def shutdown
       @finished = true
-      @thread.join
+      super
     end
 
     private
     def configure_parser(conf)
       if conf['format']
-        @parser = Fluent::TextParser.new
-        @parser.configure(conf)
+        @parser = parser_create
       end
     end
 
@@ -122,8 +116,9 @@ module Fluent
 
     def emit(stream, event)
       if @parser
-        record = @parser.parse(event.message)
-        router.emit(@tag, record[0], record[1])
+        @parser.parse(event.message) {|time, record|
+          router.emit(@tag, time, record)
+        }
       else
         time = (event.timestamp / 1000).floor
         record = JSON.parse(event.message)

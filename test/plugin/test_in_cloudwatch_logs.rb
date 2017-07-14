@@ -1,7 +1,10 @@
 require 'test_helper'
+require 'fluent/test/driver/input'
+require 'fluent/test/helpers'
 
 class CloudwatchLogsInputTest < Test::Unit::TestCase
   include CloudwatchLogsTestHelper
+  include Fluent::Test::Helpers
 
   def setup
     Fluent::Test.setup
@@ -48,11 +51,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     sleep 5
 
     d = create_driver
-    d.run do
-      sleep 5
-    end
+    d.run(expect_emits: 2, timeout: 5)
 
-    emits = d.emits
+    emits = d.events
     assert_equal(2, emits.size)
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
@@ -81,11 +82,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
     EOC
 
-    d.run do
-      sleep 5
-    end
+    d.run(expect_emits: 2, timeout: 5)
 
-    emits = d.emits
+    emits = d.events
     assert_equal(2, emits.size)
     assert_equal('test', emits[0][0])
     assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
@@ -125,11 +124,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{aws_sec_key}
       #{region}
     EOC
-    d.run do
-      sleep 5
-    end
+    d.run(expect_emits: 4, timeout: 5)
 
-    emits = d.emits
+    emits = d.events
     assert_equal(4, emits.size)
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
@@ -145,6 +142,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       log_group_name #{log_group_name}
       log_stream_name #{log_stream_name}
       state_file /tmp/state
+      fetch_interval 1
       #{aws_key_id}
       #{aws_sec_key}
       #{region}
@@ -152,6 +150,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   end
 
   def create_driver(conf = default_config)
-    Fluent::Test::InputTestDriver.new(Fluent::CloudwatchLogsInput).configure(conf)
+    Fluent::Test::Driver::Input.new(Fluent::Plugin::CloudwatchLogsInput).configure(conf)
   end
 end
