@@ -15,6 +15,7 @@ module Fluent
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
     config_param :auto_create_stream, :bool, default: false
+    config_param :auto_create_group, :bool, default: false
     config_param :message_keys, :string, :default => nil
     config_param :max_message_length, :integer, :default => nil
     config_param :max_events_per_batch, :integer, :default => 10000
@@ -119,7 +120,7 @@ module Fluent
         end
 
         unless log_group_exists?(group_name)
-          if @auto_create_stream
+          if @auto_create_group
             create_log_group(group_name)
           else
             log.warn "Log group '#{group_name}' does not exist"
