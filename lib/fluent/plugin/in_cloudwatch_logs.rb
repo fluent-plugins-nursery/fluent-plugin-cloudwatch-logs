@@ -123,10 +123,11 @@ module Fluent
     def emit(stream, event)
       if @parser
         record = @parser.parse(event.message)
-        router.emit("#{@tag}", event.timestamp / 1000, record[1])
+        router.emit(@tag, record[0], record[1])
       else
+        time = (event.timestamp / 1000).floor
         record = JSON.parse(event.message)
-        router.emit("#{@tag}", event.timestamp / 1000, record)
+        router.emit(@tag, time, record)
       end
     end
 
