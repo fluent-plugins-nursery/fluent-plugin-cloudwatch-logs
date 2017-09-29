@@ -77,7 +77,7 @@ module Fluent
       end
     end
 
-    def state_file_for(log_stream_name = nil)
+    def state_file_for(log_stream_name)
       return "#{@state_file}_#{log_stream_name.gsub(File::SEPARATOR, '-')}" if log_stream_name
       return @state_file
     end
