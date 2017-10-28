@@ -235,6 +235,7 @@ module Fluent
         args[:sequence_token] = token if token
         begin
           response = @logs.put_log_events(args)
+          log.warn response.rejected_log_events_info if response.rejected_log_events_info != nil
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
           log_stream = find_log_stream(group_name, stream_name)
