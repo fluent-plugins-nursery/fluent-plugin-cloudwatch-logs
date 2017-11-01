@@ -102,8 +102,8 @@ module Fluent
 
           if @use_log_stream_name_prefix
             log_streams = describe_log_streams
-            log_streams.each do |log_stram|
-              log_stream_name = log_stram.log_stream_name
+            log_streams.each do |log_stream|
+              log_stream_name = log_stream.log_stream_name
               events = get_events(log_stream_name)
               events.each do |event|
                 emit(log_stream_name, event)
