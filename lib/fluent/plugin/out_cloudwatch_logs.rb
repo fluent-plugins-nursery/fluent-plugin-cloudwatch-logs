@@ -1,4 +1,5 @@
 require 'fluent/output'
+require 'thread'
 
 module Fluent
   require 'fluent/mixin/config_placeholders'
@@ -28,6 +29,7 @@ module Fluent
     config_param :put_log_events_retry_wait, :time, default: 1.0
     config_param :put_log_events_retry_limit, :integer, default: 17
     config_param :put_log_events_disable_retry_limit, :bool, default: false
+    config_param :concurrency, :integer, default: 1
 
     MAX_EVENTS_SIZE = 1_048_576
     MAX_EVENT_SIZE = 256 * 1024
@@ -68,6 +70,7 @@ module Fluent
       options[:http_proxy] = @http_proxy if @http_proxy
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
+      @store_next_sequence_token_mutex = Mutex.new
     end
 
     def format(tag, time, record)
@@ -75,6 +78,8 @@ module Fluent
     end
 
     def write(chunk)
+      queue = Thread::Queue.new
+
       chunk.enum_for(:msgpack_each).select {|tag, time, record|
         if record.nil?
           log.warn "record is nil (tag=#{tag})"
@@ -156,8 +161,22 @@ module Fluent
         # The log events in the batch must be in chronological ordered by their timestamp.
         # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
         events = events.sort_by {|e| e[:timestamp] }
-        put_events_by_chunk(group_name, stream_name, events)
+
+        queue << [group_name, stream_name, events]
       }
+
+      @concurrency.times do
+        queue << nil
+      end
+      threads = @concurrency.times.map do |i|
+        Thread.start do
+          while job = queue.shift
+            group_name, stream_name, events = job
+            put_events_by_chunk(group_name, stream_name, events)
+          end
+        end
+      end
+      threads.each(&:join)
     end
 
     private
@@ -177,7 +196,9 @@ module Fluent
     end
 
     def store_next_sequence_token(group_name, stream_name, token)
-      @sequence_tokens[group_name][stream_name] = token
+      @store_next_sequence_token_mutex.synchronize do 
+        @sequence_tokens[group_name][stream_name] = token
+      end
     end
 
     def put_events_by_chunk(group_name, stream_name, events)
