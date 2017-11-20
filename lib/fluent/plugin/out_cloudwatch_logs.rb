@@ -191,6 +191,10 @@ module Fluent
       end
     end
 
+    def delete_sequence_token(group_name, stream_name)
+      @sequence_tokens[group_name].delete(stream_name)
+    end
+
     def next_sequence_token(group_name, stream_name)
       @sequence_tokens[group_name][stream_name]
     end
@@ -235,16 +239,17 @@ module Fluent
     end
 
     def put_events(group_name, stream_name, events, events_bytesize)
-      args = {
-        log_events: events,
-        log_group_name: group_name,
-        log_stream_name: stream_name,
-      }
-      token = next_sequence_token(group_name, stream_name)
-
       response = nil
       retry_count = 0
+
       until response
+        args = {
+          log_events: events,
+          log_group_name: group_name,
+          log_stream_name: stream_name,
+        }
+
+        token = next_sequence_token(group_name, stream_name)
         args[:sequence_token] = token if token
 
         begin
@@ -262,13 +267,25 @@ module Fluent
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
           log_stream = find_log_stream(group_name, stream_name)
-          token = log_stream.upload_sequence_token
+          store_next_sequence_token(group_name, stream_name, log_stream.upload_sequence_token)
           log.warn "updating upload sequence token forcefully because unrecoverable error occured", {
             "error" => err,
             "log_group" => group_name,
             "log_stream" => stream_name,
             "new_sequence_token" => token,
           }
+        rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException => err
+          if @auto_create_stream && err.message == 'The specified log stream does not exist.'
+            log.warn 'Creating log stream because "The specified log stream does not exist." error is got', {
+              "error" => err,
+              "log_group" => group_name,
+              "log_stream" => stream_name,
+            }
+            create_log_stream(group_name, stream_name)
+            delete_sequence_token(group_name, stream_name)
+          else
+            raise err
+          end
         rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
           if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
             log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
