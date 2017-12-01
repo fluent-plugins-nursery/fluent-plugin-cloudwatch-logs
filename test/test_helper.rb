@@ -3,7 +3,7 @@ require 'mocha/test_unit'
 require 'fluent/test'
 require 'securerandom'
 
-require 'aws-sdk-core'
+require 'aws-sdk-cloudwatchlogs'
 
 module CloudwatchLogsTestHelper
   private
