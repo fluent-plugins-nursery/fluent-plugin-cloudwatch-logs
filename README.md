@@ -65,7 +65,7 @@ Fetch sample log from CloudWatch Logs:
 
 ```
 <match tag>
-  type cloudwatch_logs
+  @type cloudwatch_logs
   log_group_name log-group-name
   log_stream_name log-stream-name
   auto_create_stream true
@@ -107,7 +107,7 @@ Fetch sample log from CloudWatch Logs:
 
 ```
 <source>
-  type cloudwatch_logs
+  @type cloudwatch_logs
   tag cloudwatch.in
   log_group_name group
   log_stream_name stream
@@ -235,7 +235,7 @@ In this case IAM can be used to allow the fluentd instance in one account ("A") 
 ### Configuring the plugin for STS authentication
 ```
 <source>
-  type cloudwatch_logs
+  @type cloudwatch_logs
   region us-east-1      # You must supply a region
   aws_use_sts true
   aws_sts_role_arn arn:aws:iam::ACCOUNT-B:role/fluentd
