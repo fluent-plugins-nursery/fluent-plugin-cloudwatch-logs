@@ -2,7 +2,7 @@ module Fluent
   module Plugin
     module Cloudwatch
       module Logs
-        VERSION = "0.4.3.pre1"
+        VERSION = "0.4.3.iflix"
       end
     end
   end
