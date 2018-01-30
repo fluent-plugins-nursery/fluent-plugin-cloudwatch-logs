@@ -24,6 +24,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       log_group_name test_group
       log_stream_name test_stream
       auto_create_stream false
+      log_group_aws_tags { "tagkey": "tagvalue", "tagkey_2": "tagvalue_2"}
+      retention_in_days 5
     EOC
 
     assert_equal('test_id', d.instance.aws_key_id)
@@ -32,6 +34,9 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('test_group', d.instance.log_group_name)
     assert_equal('test_stream', d.instance.log_stream_name)
     assert_equal(false, d.instance.auto_create_stream)
+    assert_equal("tagvalue", d.instance.log_group_aws_tags.fetch("tagkey"))
+    assert_equal("tagvalue_2", d.instance.log_group_aws_tags.fetch("tagkey_2"))
+    assert_equal(5, d.instance.retention_in_days)
   end
 
   def test_write
@@ -52,7 +57,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('{"cloudwatch":"logs2"}', events[1].message)
 
-    assert_match(/Calling PutLogEvents API/, d.instance.log.logs[0])
+    assert_match(/Called PutLogEvents API/, d.instance.log.logs[0])
   end
 
   def test_write_utf8
@@ -270,7 +275,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.run
 
     # Call API once for each stream
-    assert_equal(2, d.instance.log.logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(2, d.instance.log.logs.select {|l| l =~ /Called PutLogEvents API/ }.size)
 
     sleep 10
 
@@ -310,6 +315,188 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
   end
 
+  def test_log_group_aws_tags
+    clear_log_group
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    auto_create_stream true
+    use_tag_as_stream true
+    log_group_name_key group_name_key
+    log_group_aws_tags {"tag1": "value1", "tag2": "value2"}
+    EOC
+
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name},
+      {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name},
+      {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name},
+    ]
+
+    time = Time.now
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
+    d.run
+
+    awstags = get_log_group_tags
+    assert_equal("value1", awstags.fetch("tag1"))
+    assert_equal("value2", awstags.fetch("tag2"))
+  end
+
+  def test_retention_in_days
+    clear_log_group
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    auto_create_stream true
+    use_tag_as_stream true
+    log_group_name_key group_name_key
+    retention_in_days 7
+    EOC
+
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name},
+      {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name},
+      {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name},
+    ]
+
+    time = Time.now
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
+    d.run
+
+    retention = get_log_group_retention_days
+    assert_equal(d.instance.retention_in_days, retention)
+  end
+
+  def test_invalid_retention_in_days
+    clear_log_group
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    auto_create_stream true
+    use_tag_as_stream true
+    log_group_name_key group_name_key
+    retention_in_days 4
+    EOC
+
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name},
+      {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name},
+      {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name},
+    ]
+
+    time = Time.now
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
+    d.run
+
+    assert_match(/failed to set retention policy for Log group/, d.instance.log.logs[0])
+  end
+
+  def test_log_group_aws_tags_key
+    clear_log_group
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    auto_create_stream true
+    use_tag_as_stream true
+    log_group_name_key group_name_key
+    log_group_aws_tags_key aws_tags
+    EOC
+
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'aws_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+      {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name, 'aws_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+      {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name, 'aws_tags' => {"tag1" => "value1", "tag2" => "value2"}}
+    ]
+
+    time = Time.now
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
+    d.run
+
+    awstags = get_log_group_tags
+    assert_equal("value1", awstags.fetch("tag1"))
+    assert_equal("value2", awstags.fetch("tag2"))
+  end
+
+  def test_log_group_aws_tags_key_same_group_diff_tags
+    clear_log_group
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    auto_create_stream true
+    use_tag_as_stream true
+    log_group_name_key group_name_key
+    log_group_aws_tags_key aws_tags
+    EOC
+
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'aws_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+      {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name, 'aws_tags' => {"tag3" => "value3", "tag4" => "value4"}}
+    ]
+
+    time = Time.now
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
+    d.run
+
+    awstags = get_log_group_tags
+    assert_equal("value1", awstags.fetch("tag1"))
+    assert_equal("value2", awstags.fetch("tag2"))
+    assert_raise KeyError do
+      awstags.fetch("tag3")
+    end
+    assert_raise KeyError do
+      awstags.fetch("tag4")
+    end
+  end
+
+  def test_log_group_aws_tags_key_no_tags
+    clear_log_group
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    auto_create_stream true
+    log_group_name_key group_name_key
+    log_stream_name_key stream_name_key
+    remove_log_group_name_key true
+    remove_log_stream_name_key true
+    log_group_aws_tags_key aws_tags
+    EOC
+
+    stream = log_stream_name
+    records = [
+      {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, 'stream_name_key' => stream},
+      {'cloudwatch' => 'logs2', 'message' => 'message2', 'group_name_key' => log_group_name, 'stream_name_key' => stream}
+    ]
+
+    time = Time.now
+    records.each_with_index do |record, i|
+      d.emit(record, time.to_i + i)
+    end
+    d.run
+
+    sleep 10
+
+    awstags = get_log_group_tags
+
+    assert_raise KeyError do
+      awstags.fetch("tag1")
+    end
+
+    events = get_log_events(log_group_name, stream)
+    assert_equal(2, events.size)
+    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
+    assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
+  end
+
   def test_retrying_on_throttling_exception
     resp = mock()
     resp.expects(:next_sequence_token)
@@ -323,10 +510,9 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     d.emit({'message' => 'message1'}, time.to_i)
     d.run
 
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[0])
-    assert_match(/failed to PutLogEvents/, d.instance.log.logs[1])
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[2])
-    assert_match(/retry succeeded/, d.instance.log.logs[3])
+    assert_match(/failed to PutLogEvents/, d.instance.log.logs[0])
+    assert_match(/Called PutLogEvents/, d.instance.log.logs[1])
+    assert_match(/retry succeeded/, d.instance.log.logs[2])
   end
 
   def test_retrying_on_throttling_exception_and_throw_away
@@ -345,12 +531,9 @@ put_log_events_retry_limit 1
     d.emit({'message' => 'message1'}, time.to_i)
     d.run
 
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[0])
+    assert_match(/failed to PutLogEvents/, d.instance.log.logs[0])
     assert_match(/failed to PutLogEvents/, d.instance.log.logs[1])
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[2])
-    assert_match(/failed to PutLogEvents/, d.instance.log.logs[3])
-    assert_match(/Calling PutLogEvents/, d.instance.log.logs[4])
-    assert_match(/failed to PutLogEvents and throwing away/, d.instance.log.logs[5])
+    assert_match(/failed to PutLogEvents and discard logs/, d.instance.log.logs[2])
   end
 
   def test_too_large_event
