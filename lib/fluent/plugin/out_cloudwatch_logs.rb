@@ -162,10 +162,7 @@ module Fluent
           end
 
           if @auto_create_stream
-            create_log_group(group_name, awstags)
-            unless retention_in_days.nil?
-              put_retention_policy(group_name, retention_in_days)
-            end
+            create_log_group(group_name, awstags, retention_in_days)
           else
             log.warn "Log group '#{group_name}' does not exist"
             next
@@ -354,9 +351,12 @@ module Fluent
       store_next_sequence_token(group_name, stream_name, response.next_sequence_token)
     end
 
-    def create_log_group(group_name, log_group_aws_tags = nil)
+    def create_log_group(group_name, log_group_aws_tags = nil, retention_in_days = nil)
       begin
         @logs.create_log_group(log_group_name: group_name, tags: log_group_aws_tags)
+        unless retention_in_days.nil?
+          put_retention_policy(group_name, retention_in_days)
+        end
         @sequence_tokens[group_name] = {}
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
         log.debug "Log group '#{group_name}' already exists"
