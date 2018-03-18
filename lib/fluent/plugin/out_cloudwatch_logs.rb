@@ -155,9 +155,9 @@ module Fluent
           retention_in_days = @retention_in_days
           unless @retention_in_days_key.nil?
             if @remove_retention_in_days_key
-              awstags = record.delete(@retention_in_days_key)
+              retention_in_days = record.delete(@retention_in_days_key)
             else
-              awstags = record[@retention_in_days_key]
+              retention_in_days = record[@retention_in_days_key]
             end
           end
 
