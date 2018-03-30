@@ -17,7 +17,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
   def test_configure
     d = create_driver(<<-EOC)
-      type cloudwatch_logs
+      @type cloudwatch_logs
       aws_key_id test_id
       aws_sec_key test_key
       region us-east-1
@@ -571,7 +571,7 @@ log_stream_name #{log_stream_name}
   private
   def default_config
     <<-EOC
-type cloudwatch_logs
+@type cloudwatch_logs
 auto_create_stream true
 #{aws_key_id}
 #{aws_sec_key}

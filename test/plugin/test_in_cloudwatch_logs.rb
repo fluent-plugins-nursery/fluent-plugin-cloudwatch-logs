@@ -15,7 +15,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
   def test_configure
     d = create_driver(<<-EOC)
-      type cloudwatch_logs
+      @type cloudwatch_logs
       aws_key_id test_id
       aws_sec_key test_key
       region us-east-1
@@ -71,7 +71,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
     d = create_driver(<<-EOC)
       tag test
-      type cloudwatch_logs
+      @type cloudwatch_logs
       log_group_name #{log_group_name}
       log_stream_name #{log_stream_name}
       state_file /tmp/state
@@ -116,7 +116,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
     d = create_driver(<<-EOC)
       tag test
-      type cloudwatch_logs
+      @type cloudwatch_logs
       log_group_name #{log_group_name}
       log_stream_name testprefix
       use_log_stream_name_prefix true
@@ -141,7 +141,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   def default_config
     <<-EOC
       tag test
-      type cloudwatch_logs
+      @type cloudwatch_logs
       log_group_name #{log_group_name}
       log_stream_name #{log_stream_name}
       state_file /tmp/state
