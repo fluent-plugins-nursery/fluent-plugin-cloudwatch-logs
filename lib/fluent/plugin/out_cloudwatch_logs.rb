@@ -12,6 +12,7 @@ module Fluent
 
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
+    config_param :aws_credentials_retries, :integer, default: nil
     config_param :region, :string, :default => nil
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
@@ -81,6 +82,7 @@ module Fluent
       options = {}
       options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
+      options[:instance_profile_credentials_retries] = @aws_credentials_retries if @aws_credentials_retries
       options[:http_proxy] = @http_proxy if @http_proxy
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
