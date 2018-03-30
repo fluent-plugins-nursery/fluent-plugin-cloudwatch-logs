@@ -30,6 +30,12 @@ module Fluent
     config_param :put_log_events_retry_limit, :integer, default: 17
     config_param :put_log_events_disable_retry_limit, :bool, default: false
     config_param :concurrency, :integer, default: 1
+    config_param :log_group_aws_tags, :hash, default: nil
+    config_param :log_group_aws_tags_key, :string, default: nil
+    config_param :remove_log_group_aws_tags_key, :bool, default: false
+    config_param :retention_in_days, :integer, default: nil
+    config_param :retention_in_days_key, :string, default: nil
+    config_param :remove_retention_in_days, :bool, default: false
 
     MAX_EVENTS_SIZE = 1_048_576
     MAX_EVENT_SIZE = 256 * 1024
@@ -58,6 +64,14 @@ module Fluent
 
       unless [conf['log_stream_name'], conf['use_tag_as_stream'], conf['log_stream_name_key']].compact.size == 1
         raise ConfigError, "Set only one of log_stream_name, use_tag_as_stream and log_stream_name_key"
+      end
+
+      if [conf['log_group_aws_tags'], conf['log_group_aws_tags_key']].compact.size > 1
+        raise ConfigError, "Set only one of log_group_aws_tags, log_group_aws_tags_key"
+      end
+
+      if [conf['retention_in_days'], conf['retention_in_days_key']].compact.size > 1
+        raise ConfigError, "Set only one of retention_in_days, retention_in_days_key"
       end
     end
 
@@ -124,8 +138,31 @@ module Fluent
         end
 
         unless log_group_exists?(group_name)
+          #rs = [[name, timestamp, record],[name,timestamp,record]]
+          #get tags and retention from first record
+          #as we create log group only once, values from first record will persist
+          record = rs[0][2]
+
+          awstags = @log_group_aws_tags
+          unless @log_group_aws_tags_key.nil?
+            if @remove_log_group_aws_tags_key
+              awstags = record.delete(@log_group_aws_tags_key)
+            else
+              awstags = record[@log_group_aws_tags_key]
+            end
+          end
+
+          retention_in_days = @retention_in_days
+          unless @retention_in_days_key.nil?
+            if @remove_retention_in_days_key
+              retention_in_days = record.delete(@retention_in_days_key)
+            else
+              retention_in_days = record[@retention_in_days_key]
+            end
+          end
+
           if @auto_create_stream
-            create_log_group(group_name)
+            create_log_group(group_name, awstags, retention_in_days)
           else
             log.warn "Log group '#{group_name}' does not exist"
             next
@@ -200,7 +237,7 @@ module Fluent
     end
 
     def store_next_sequence_token(group_name, stream_name, token)
-      @store_next_sequence_token_mutex.synchronize do 
+      @store_next_sequence_token_mutex.synchronize do
         @sequence_tokens[group_name][stream_name] = token
       end
     end
@@ -314,12 +351,26 @@ module Fluent
       store_next_sequence_token(group_name, stream_name, response.next_sequence_token)
     end
 
-    def create_log_group(group_name)
+    def create_log_group(group_name, log_group_aws_tags = nil, retention_in_days = nil)
       begin
-        @logs.create_log_group(log_group_name: group_name)
+        @logs.create_log_group(log_group_name: group_name, tags: log_group_aws_tags)
+        unless retention_in_days.nil?
+          put_retention_policy(group_name, retention_in_days)
+        end
         @sequence_tokens[group_name] = {}
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
         log.debug "Log group '#{group_name}' already exists"
+      end
+    end
+
+    def put_retention_policy(group_name, retention_in_days)
+      begin
+        @logs.put_retention_policy({
+          log_group_name: group_name,
+          retention_in_days: retention_in_days
+        })
+      rescue Aws::CloudWatchLogs::Errors::InvalidParameterException => error
+        log.warn "failed to set retention policy for Log group '#{group_name}' with error #{error.backtrace}"
       end
     end
 
