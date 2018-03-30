@@ -12,6 +12,9 @@ module Fluent
 
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
+    config_param :aws_use_sts, :bool, default: false
+    config_param :aws_sts_role_arn, :string, default: nil
+    config_param :aws_sts_session_name, :string, default: 'fluentd'
     config_param :region, :string, :default => nil
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
@@ -79,8 +82,17 @@ module Fluent
       super
 
       options = {}
-      options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
+
+      if @aws_use_sts
+        Aws.config[:region] = options[:region]
+        options[:credentials] = Aws::AssumeRoleCredentials.new(
+          role_arn: @aws_sts_role_arn,
+          role_session_name: @aws_sts_session_name
+        )
+      else
+        options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
+      end
       options[:http_proxy] = @http_proxy if @http_proxy
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
