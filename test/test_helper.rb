@@ -3,7 +3,7 @@ require 'mocha/test_unit'
 require 'fluent/test'
 require 'securerandom'
 
-require 'aws-sdk-core'
+require 'aws-sdk-cloudwatchlogs'
 
 module CloudwatchLogsTestHelper
   private
@@ -41,6 +41,16 @@ module CloudwatchLogsTestHelper
   def new_log_stream(log_stream_name_prefix = nil)
     uuid = SecureRandom.uuid
     @log_stream_name = log_stream_name_prefix ? log_stream_name_prefix + uuid : uuid
+  end
+
+  def get_log_group_tags(name = nil)
+    name ||= log_group_name
+    logs.list_tags_log_group(log_group_name: name).tags
+  end
+
+  def get_log_group_retention_days(name = nil)
+    name ||= log_group_name
+    logs.describe_log_groups(log_group_name_prefix: name, limit: 1).log_groups.first.retention_in_days
   end
 
   def clear_log_group

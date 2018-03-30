@@ -1,4 +1,5 @@
 require 'fluent/plugin/output'
+require 'thread'
 
 module Fluent::Plugin
   class CloudwatchLogsOutput < Output
@@ -10,6 +11,9 @@ module Fluent::Plugin
 
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
+    config_param :aws_use_sts, :bool, default: false
+    config_param :aws_sts_role_arn, :string, default: nil
+    config_param :aws_sts_session_name, :string, default: 'fluentd'
     config_param :region, :string, :default => nil
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
@@ -27,6 +31,13 @@ module Fluent::Plugin
     config_param :put_log_events_retry_wait, :time, default: 1.0
     config_param :put_log_events_retry_limit, :integer, default: 17
     config_param :put_log_events_disable_retry_limit, :bool, default: false
+    config_param :concurrency, :integer, default: 1
+    config_param :log_group_aws_tags, :hash, default: nil
+    config_param :log_group_aws_tags_key, :string, default: nil
+    config_param :remove_log_group_aws_tags_key, :bool, default: false
+    config_param :retention_in_days, :integer, default: nil
+    config_param :retention_in_days_key, :string, default: nil
+    config_param :remove_retention_in_days, :bool, default: false
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -39,7 +50,7 @@ module Fluent::Plugin
     def initialize
       super
 
-      require 'aws-sdk-core'
+      require 'aws-sdk-cloudwatchlogs'
     end
 
     def configure(conf)
@@ -53,17 +64,35 @@ module Fluent::Plugin
       unless [conf['log_stream_name'], conf['use_tag_as_stream'], conf['log_stream_name_key']].compact.size == 1
         raise Fluent::ConfigError, "Set only one of log_stream_name, use_tag_as_stream and log_stream_name_key"
       end
+
+      if [conf['log_group_aws_tags'], conf['log_group_aws_tags_key']].compact.size > 1
+        raise ConfigError, "Set only one of log_group_aws_tags, log_group_aws_tags_key"
+      end
+
+      if [conf['retention_in_days'], conf['retention_in_days_key']].compact.size > 1
+        raise ConfigError, "Set only one of retention_in_days, retention_in_days_key"
+      end
     end
 
     def start
       super
 
       options = {}
-      options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       options[:region] = @region if @region
+
+      if @aws_use_sts
+        Aws.config[:region] = options[:region]
+        options[:credentials] = Aws::AssumeRoleCredentials.new(
+          role_arn: @aws_sts_role_arn,
+          role_session_name: @aws_sts_session_name
+        )
+      else
+        options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
+      end
       options[:http_proxy] = @http_proxy if @http_proxy
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
+      @store_next_sequence_token_mutex = Mutex.new
     end
 
     def format(tag, time, record)
@@ -80,6 +109,8 @@ module Fluent::Plugin
     end
 
     def write(chunk)
+      queue = Thread::Queue.new
+
       chunk.enum_for(:msgpack_each).select {|tag, time, record|
         if record.nil?
           log.warn "record is nil (tag=#{tag})"
@@ -124,8 +155,31 @@ module Fluent::Plugin
         end
 
         unless log_group_exists?(group_name)
+          #rs = [[name, timestamp, record],[name,timestamp,record]]
+          #get tags and retention from first record
+          #as we create log group only once, values from first record will persist
+          record = rs[0][2]
+
+          awstags = @log_group_aws_tags
+          unless @log_group_aws_tags_key.nil?
+            if @remove_log_group_aws_tags_key
+              awstags = record.delete(@log_group_aws_tags_key)
+            else
+              awstags = record[@log_group_aws_tags_key]
+            end
+          end
+
+          retention_in_days = @retention_in_days
+          unless @retention_in_days_key.nil?
+            if @remove_retention_in_days_key
+              retention_in_days = record.delete(@retention_in_days_key)
+            else
+              retention_in_days = record[@retention_in_days_key]
+            end
+          end
+
           if @auto_create_stream
-            create_log_group(group_name)
+            create_log_group(group_name, awstags, retention_in_days)
           else
             log.warn "Log group '#{group_name}' does not exist"
             next
@@ -161,8 +215,22 @@ module Fluent::Plugin
         # The log events in the batch must be in chronological ordered by their timestamp.
         # http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
         events = events.sort_by {|e| e[:timestamp] }
-        put_events_by_chunk(group_name, stream_name, events)
+
+        queue << [group_name, stream_name, events]
       }
+
+      @concurrency.times do
+        queue << nil
+      end
+      threads = @concurrency.times.map do |i|
+        Thread.start do
+          while job = queue.shift
+            group_name, stream_name, events = job
+            put_events_by_chunk(group_name, stream_name, events)
+          end
+        end
+      end
+      threads.each(&:join)
     end
 
     private
@@ -177,12 +245,18 @@ module Fluent::Plugin
       end
     end
 
+    def delete_sequence_token(group_name, stream_name)
+      @sequence_tokens[group_name].delete(stream_name)
+    end
+
     def next_sequence_token(group_name, stream_name)
       @sequence_tokens[group_name][stream_name]
     end
 
     def store_next_sequence_token(group_name, stream_name, token)
-      @sequence_tokens[group_name][stream_name] = token
+      @store_next_sequence_token_mutex.synchronize do
+        @sequence_tokens[group_name][stream_name] = token
+      end
     end
 
     def put_events_by_chunk(group_name, stream_name, events)
@@ -219,37 +293,54 @@ module Fluent::Plugin
     end
 
     def put_events(group_name, stream_name, events, events_bytesize)
-      args = {
-        log_events: events,
-        log_group_name: group_name,
-        log_stream_name: stream_name,
-      }
-      token = next_sequence_token(group_name, stream_name)
-
       response = nil
       retry_count = 0
+
       until response
-        log.debug "Calling PutLogEvents API", {
-          "group" => group_name,
-          "stream" => stream_name,
-          "events_count" => events.size,
-          "events_bytesize" => events_bytesize,
-          "sequence_token" => token,
+        args = {
+          log_events: events,
+          log_group_name: group_name,
+          log_stream_name: stream_name,
         }
 
+        token = next_sequence_token(group_name, stream_name)
         args[:sequence_token] = token if token
+
         begin
+          t = Time.now
           response = @logs.put_log_events(args)
+          log.warn response.rejected_log_events_info if response.rejected_log_events_info != nil
+          log.debug "Called PutLogEvents API", {
+            "group" => group_name,
+            "stream" => stream_name,
+            "events_count" => events.size,
+            "events_bytesize" => events_bytesize,
+            "sequence_token" => token,
+            "thread" => Thread.current.object_id,
+            "request_sec" => Time.now - t,
+          }
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
           log_stream = find_log_stream(group_name, stream_name)
-          token = log_stream.upload_sequence_token
+          store_next_sequence_token(group_name, stream_name, log_stream.upload_sequence_token)
           log.warn "updating upload sequence token forcefully because unrecoverable error occured", {
             "error" => err,
             "log_group" => group_name,
             "log_stream" => stream_name,
             "new_sequence_token" => token,
           }
+        rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException => err
+          if @auto_create_stream && err.message == 'The specified log stream does not exist.'
+            log.warn 'Creating log stream because "The specified log stream does not exist." error is got', {
+              "error" => err,
+              "log_group" => group_name,
+              "log_stream" => stream_name,
+            }
+            create_log_stream(group_name, stream_name)
+            delete_sequence_token(group_name, stream_name)
+          else
+            raise err
+          end
         rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
           if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
             log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
@@ -278,12 +369,26 @@ module Fluent::Plugin
       store_next_sequence_token(group_name, stream_name, response.next_sequence_token)
     end
 
-    def create_log_group(group_name)
+    def create_log_group(group_name, log_group_aws_tags = nil, retention_in_days = nil)
       begin
-        @logs.create_log_group(log_group_name: group_name)
+        @logs.create_log_group(log_group_name: group_name, tags: log_group_aws_tags)
+        unless retention_in_days.nil?
+          put_retention_policy(group_name, retention_in_days)
+        end
         @sequence_tokens[group_name] = {}
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
         log.debug "Log group '#{group_name}' already exists"
+      end
+    end
+
+    def put_retention_policy(group_name, retention_in_days)
+      begin
+        @logs.put_retention_policy({
+          log_group_name: group_name,
+          retention_in_days: retention_in_days
+        })
+      rescue Aws::CloudWatchLogs::Errors::InvalidParameterException => error
+        log.warn "failed to set retention policy for Log group '#{group_name}' with error #{error.backtrace}"
       end
     end
 

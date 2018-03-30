@@ -28,7 +28,7 @@ module Fluent::Plugin
     def initialize
       super
 
-      require 'aws-sdk-core'
+      require 'aws-sdk-cloudwatchlogs'
     end
 
     def configure(conf)
@@ -96,8 +96,8 @@ module Fluent::Plugin
 
           if @use_log_stream_name_prefix
             log_streams = describe_log_streams
-            log_streams.each do |log_stram|
-              log_stream_name = log_stram.log_stream_name
+            log_streams.each do |log_stream|
+              log_stream_name = log_stream.log_stream_name
               events = get_events(log_stream_name)
               events.each do |event|
                 emit(log_stream_name, event)
@@ -146,7 +146,7 @@ module Fluent::Plugin
       request[:log_stream_name_prefix] = @log_stream_name
       response = @logs.describe_log_streams(request)
       if log_streams
-        log_streams << response.log_streams
+        log_streams.concat(response.log_streams)
       else
         log_streams = response.log_streams
       end
