@@ -304,6 +304,7 @@ module Fluent
         begin
           t = Time.now
           response = @logs.put_log_events(args)
+          log.warn response.rejected_log_events_info if response.rejected_log_events_info != nil
           log.debug "Called PutLogEvents API", {
             "group" => group_name,
             "stream" => stream_name,
