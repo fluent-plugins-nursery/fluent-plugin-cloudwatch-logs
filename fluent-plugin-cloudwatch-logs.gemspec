@@ -17,9 +17,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency 'fluentd'
+  spec.add_dependency 'fluentd', '>= 0.14.15'
   spec.add_dependency 'aws-sdk-cloudwatchlogs', '~> 1.0'
-  spec.add_dependency 'fluent-mixin-config-placeholders', '>= 0.2.0'
 
   spec.add_development_dependency "bundler", "~> 1.6"
   spec.add_development_dependency "rake"

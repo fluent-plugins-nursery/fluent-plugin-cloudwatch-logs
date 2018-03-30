@@ -1,14 +1,13 @@
-require 'fluent/output'
+require 'fluent/plugin/output'
 require 'thread'
 
-module Fluent
-  require 'fluent/mixin/config_placeholders'
+module Fluent::Plugin
+  class CloudwatchLogsOutput < Output
+    Fluent::Plugin.register_output('cloudwatch_logs', self)
 
-  class CloudwatchLogsOutput < BufferedOutput
-    Plugin.register_output('cloudwatch_logs', self)
+    helpers :compat_parameters, :inject
 
-    include Fluent::SetTimeKeyMixin
-    include Fluent::Mixin::ConfigPlaceholders
+    DEFAULT_BUFFER_TYPE = "memory"
 
     config_param :aws_key_id, :string, :default => nil, :secret => true
     config_param :aws_sec_key, :string, :default => nil, :secret => true
@@ -40,13 +39,13 @@ module Fluent
     config_param :retention_in_days_key, :string, default: nil
     config_param :remove_retention_in_days, :bool, default: false
 
+    config_section :buffer do
+      config_set_default :@type, DEFAULT_BUFFER_TYPE
+    end
+
     MAX_EVENTS_SIZE = 1_048_576
     MAX_EVENT_SIZE = 256 * 1024
     EVENT_HEADER_SIZE = 26
-
-    unless method_defined?(:log)
-      define_method(:log) { $log }
-    end
 
     def initialize
       super
@@ -54,19 +53,16 @@ module Fluent
       require 'aws-sdk-cloudwatchlogs'
     end
 
-    def placeholders
-      [:percent]
-    end
-
     def configure(conf)
+      compat_parameters_convert(conf, :buffer, :inject)
       super
 
       unless [conf['log_group_name'], conf['use_tag_as_group'], conf['log_group_name_key']].compact.size == 1
-        raise ConfigError, "Set only one of log_group_name, use_tag_as_group and log_group_name_key"
+        raise Fluent::ConfigError, "Set only one of log_group_name, use_tag_as_group and log_group_name_key"
       end
 
       unless [conf['log_stream_name'], conf['use_tag_as_stream'], conf['log_stream_name_key']].compact.size == 1
-        raise ConfigError, "Set only one of log_stream_name, use_tag_as_stream and log_stream_name_key"
+        raise Fluent::ConfigError, "Set only one of log_stream_name, use_tag_as_stream and log_stream_name_key"
       end
 
       if [conf['log_group_aws_tags'], conf['log_group_aws_tags_key']].compact.size > 1
@@ -100,7 +96,16 @@ module Fluent
     end
 
     def format(tag, time, record)
+      record = inject_values_to_record(tag, time, record)
       [tag, time, record].to_msgpack
+    end
+
+    def formatted_to_msgpack_binary?
+      true
+    end
+
+    def multi_workers_ready?
+      true
     end
 
     def write(chunk)
