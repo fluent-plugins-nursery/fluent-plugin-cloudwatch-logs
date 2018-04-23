@@ -607,6 +607,7 @@ auto_create_stream true
 #{aws_key_id}
 #{aws_sec_key}
 #{region}
+#{endpoint}
     EOC
   end
 
