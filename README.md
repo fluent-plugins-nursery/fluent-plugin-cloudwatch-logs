@@ -82,6 +82,7 @@ Fetch sample log from CloudWatch Logs:
   #put_log_events_retry_wait 1s
   #put_log_events_retry_limit 17
   #put_log_events_disable_retry_limit false
+  #endpoint http://localhost:5000/
 </match>
 ```
 
@@ -102,6 +103,7 @@ Fetch sample log from CloudWatch Logs:
 * `put_log_events_retry_wait`: time before retrying PutLogEvents (retry interval increases exponentially like `put_log_events_retry_wait * (2 ^ retry_count)`)
 * `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)
 * `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
+* `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 
 ### in_cloudwatch_logs
 
@@ -113,6 +115,7 @@ Fetch sample log from CloudWatch Logs:
   log_stream_name stream
   #use_log_stream_name_prefix true
   state_file /var/lib/fluent/group_stream.in.state
+  #endpoint http://localhost:5000/
 </source>
 ```
 
@@ -121,6 +124,7 @@ Fetch sample log from CloudWatch Logs:
 * `log_stream_name`: name of log stream to fetch logs
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `state_file`: file to store current state (e.g. next\_forward\_token)
+* `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
@@ -148,6 +152,14 @@ Or, If you do not want to use IAM roll or ENV(this is just like writing to confi
 ```
 $ rake aws_key_id=YOUR_ACCESS_KEY aws_sec_key=YOUR_SECRET_KEY region=us-east-1 test
 ```
+
+If you want to run the test suite against a mock server, set `endpoint` as below:
+
+```
+$ export endpoint='http://localhost:5000/'
+$ rake test
+```
+
 
 ## Caution
 
