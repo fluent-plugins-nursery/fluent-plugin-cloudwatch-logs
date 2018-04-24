@@ -356,10 +356,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     ]
 
     time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time.to_i + i, record)
+      end
     end
-    d.run
 
     awstags = get_log_group_tags
     assert_equal("value1", awstags.fetch("tag1"))
@@ -384,10 +385,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     ]
 
     time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time.to_i + i, record)
+      end
     end
-    d.run
 
     retention = get_log_group_retention_days
     assert_equal(d.instance.retention_in_days, retention)
@@ -411,10 +413,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     ]
 
     time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time.to_i + i, record)
+      end
     end
-    d.run
 
     assert_match(/failed to set retention policy for Log group/, d.instance.log.logs[0])
   end
@@ -437,10 +440,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     ]
 
     time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time.to_i + i, record)
+      end
     end
-    d.run
 
     awstags = get_log_group_tags
     assert_equal("value1", awstags.fetch("tag1"))
@@ -464,10 +468,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     ]
 
     time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time.to_i + i, record)
+      end
     end
-    d.run
 
     awstags = get_log_group_tags
     assert_equal("value1", awstags.fetch("tag1"))
@@ -500,10 +505,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     ]
 
     time = Time.now
-    records.each_with_index do |record, i|
-      d.emit(record, time.to_i + i)
+    d.run(default_tag: fluentd_tag) do
+      records.each_with_index do |record, i|
+        d.feed(time.to_i + i, record)
+      end
     end
-    d.run
 
     sleep 10
 
