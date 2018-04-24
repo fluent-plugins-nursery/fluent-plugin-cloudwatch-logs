@@ -13,6 +13,7 @@ module Fluent::Plugin
     config_param :aws_sts_role_arn, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
     config_param :region, :string, :default => nil
+    config_param :endpoint, :string, :default => nil
     config_param :tag, :string
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
@@ -41,6 +42,7 @@ module Fluent::Plugin
       super
       options = {}
       options[:region] = @region if @region
+      options[:endpoint] = @endpoint if @endpoint
       options[:http_proxy] = @http_proxy if @http_proxy
 
       if @aws_use_sts

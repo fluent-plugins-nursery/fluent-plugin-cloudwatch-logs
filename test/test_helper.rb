@@ -11,6 +11,7 @@ module CloudwatchLogsTestHelper
     options = {}
     options[:credentials] = Aws::Credentials.new(ENV['aws_key_id'], ENV['aws_sec_key']) if ENV['aws_key_id'] && ENV['aws_sec_key']
     options[:region] = ENV['region'] if ENV['region']
+    options[:endpoint] = ENV['endpoint'] if ENV['endpoint']
     options[:http_proxy] = ENV['http_proxy'] if ENV['http_proxy']
     @logs ||= Aws::CloudWatchLogs::Client.new(options)
   end
@@ -29,6 +30,10 @@ module CloudwatchLogsTestHelper
 
   def region
     "region #{ENV['region']}" if ENV['region']
+  end
+
+  def endpoint
+    "endpoint #{ENV['endpoint']}" if ENV['endpoint']
   end
 
   def log_stream_name(log_stream_name_prefix = nil)

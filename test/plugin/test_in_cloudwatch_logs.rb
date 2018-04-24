@@ -80,6 +80,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{aws_key_id}
       #{aws_sec_key}
       #{region}
+      #{endpoint}
     EOC
 
     d.run(expect_emits: 2, timeout: 5)
@@ -123,6 +124,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{aws_key_id}
       #{aws_sec_key}
       #{region}
+      #{endpoint}
     EOC
     d.run(expect_emits: 4, timeout: 5)
 
@@ -146,6 +148,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{aws_key_id}
       #{aws_sec_key}
       #{region}
+      #{endpoint}
     EOC
   end
 
