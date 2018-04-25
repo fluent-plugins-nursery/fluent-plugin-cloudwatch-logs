@@ -83,6 +83,7 @@ Fetch sample log from CloudWatch Logs:
   #put_log_events_retry_limit 17
   #put_log_events_disable_retry_limit false
   #endpoint http://localhost:5000/
+  #json_handler json
 </match>
 ```
 
@@ -104,6 +105,7 @@ Fetch sample log from CloudWatch Logs:
 * `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)
 * `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `json_handler`: name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 
 ### in_cloudwatch_logs
 
@@ -116,6 +118,7 @@ Fetch sample log from CloudWatch Logs:
   #use_log_stream_name_prefix true
   state_file /var/lib/fluent/group_stream.in.state
   #endpoint http://localhost:5000/
+  #json_handler json
 </source>
 ```
 
@@ -128,6 +131,7 @@ Fetch sample log from CloudWatch Logs:
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
+* `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 
 This plugin uses [fluent-mixin-config-placeholders](https://github.com/tagomoris/fluent-mixin-config-placeholders) and you can use addtional variables such as %{hostname}, %{uuid}, etc. These variables are useful to put hostname in `log_stream_name`.
 

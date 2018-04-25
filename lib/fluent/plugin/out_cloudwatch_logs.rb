@@ -1,5 +1,6 @@
 require 'fluent/plugin/output'
 require 'thread'
+require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsOutput < Output
@@ -39,6 +40,7 @@ module Fluent::Plugin
     config_param :retention_in_days, :integer, default: nil
     config_param :retention_in_days_key, :string, default: nil
     config_param :remove_retention_in_days, :bool, default: false
+    config_param :json_handler, :enum, list: [:yajl, :json], :default => :json
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -95,6 +97,13 @@ module Fluent::Plugin
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
       @store_next_sequence_token_mutex = Mutex.new
+
+      @json_handler = case @json_handler
+                      when :yajl
+                        Yajl
+                      when :json
+                        JSON
+                      end
     end
 
     def format(tag, time, record)
@@ -205,7 +214,7 @@ module Fluent::Plugin
           if @message_keys
             message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
           else
-            message = record.to_json
+            message = @json_handler.dump(record)
           end
 
           if @max_message_length

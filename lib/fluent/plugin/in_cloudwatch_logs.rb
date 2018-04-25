@@ -1,5 +1,6 @@
 require 'fluent/plugin/input'
 require 'fluent/plugin/parser'
+require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsInput < Input
@@ -21,6 +22,7 @@ module Fluent::Plugin
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
+    config_param :json_handler, :enum, list: [:yajl, :json], :default => :json
 
     config_section :parse do
       config_set_default :@type, 'none'
@@ -59,6 +61,13 @@ module Fluent::Plugin
 
       @finished = false
       thread_create(:in_cloudwatch_logs_runner, &method(:run))
+
+      @json_handler = case @json_handler
+                      when :yajl
+                        Yajl
+                      when :json
+                        JSON
+                      end
     end
 
     def shutdown
@@ -123,7 +132,7 @@ module Fluent::Plugin
         }
       else
         time = (event.timestamp / 1000).floor
-        record = JSON.parse(event.message)
+        record = @json_handler.load(event.message)
         router.emit(@tag, time, record)
       end
     end
