@@ -37,6 +37,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal('stream', d.instance.log_stream_name)
     assert_equal(true, d.instance.use_log_stream_name_prefix)
     assert_equal('/tmp/state', d.instance.state_file)
+    assert_equal(:json, d.instance.json_handler)
   end
 
   def test_emit
