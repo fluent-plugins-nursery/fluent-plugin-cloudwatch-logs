@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Ryota Arai"]
   spec.email         = ["ryota.arai@gmail.com"]
   spec.summary       = %q{CloudWatch Logs Plugin for Fluentd}
-  spec.homepage      = "https://github.com/ryotarai/fluent-plugin-cloudwatch-logs"
+  spec.homepage      = "https://github.com/fluent-plugins-nursery/fluent-plugin-cloudwatch-logs"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
