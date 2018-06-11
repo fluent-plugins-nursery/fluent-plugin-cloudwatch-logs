@@ -50,6 +50,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     time = event_time
     d.run(default_tag: fluentd_tag, flush: true) do
       d.feed(time, {'cloudwatch' => 'logs1'})
+      # Addition converts EventTime to seconds
       d.feed(time + 1, {'cloudwatch' => 'logs2'})
     end
 
@@ -58,12 +59,12 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     logs = d.logs
     events = get_log_events
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal('{"cloudwatch":"logs1"}', events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('{"cloudwatch":"logs2"}', events[1].message)
 
-    assert(logs.any?{|log| log.include?("Calling PutLogEvents API") })
+    assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
   end
 
   def test_write_utf8
@@ -79,7 +80,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events
     assert_equal(1, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal('{"cloudwatch":"これは日本語です"}', events[0].message)
   end
 
@@ -105,7 +106,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal(3, events.size)
     assert_equal((time.to_i - 60 * 60 * 25) * 1000, events[0].timestamp)
     assert_equal('{"cloudwatch":"logs0"}', events[0].message)
-    assert_equal((time.to_i ) * 1000, events[1].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[1].timestamp)
     assert_equal('{"cloudwatch":"logs1"}', events[1].message)
     assert_equal((time.to_i + 1) * 1000, events[2].timestamp)
     assert_equal('{"cloudwatch":"logs2"}', events[2].message)
@@ -131,7 +132,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal('message1 logs1', events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('message2 logs2', events[1].message)
@@ -158,7 +159,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal('message1 l', events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('message2 l', events[1].message)
@@ -184,7 +185,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events(fluentd_tag)
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal('message1 logs1', events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('message2 logs2', events[1].message)
@@ -210,7 +211,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events(log_group_name, fluentd_tag)
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal('message1 logs1', events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal('message2 logs2', events[1].message)
@@ -237,7 +238,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{Time.at(time.to_r).utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{Time.at((time+1).to_r).utc.strftime("%Y-%m-%dT%H:%M:%SZ")}\"}", events[1].message)
@@ -264,7 +265,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events
     assert_equal(2, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal("{\"cloudwatch\":\"logs1\",\"time\":\"#{Time.at(time.to_r).strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[0].message)
     assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
     assert_equal("{\"cloudwatch\":\"logs2\",\"time\":\"#{Time.at((time+1).to_r).to_time.strftime("%Y-%m-%dT%H:%M:%S%:z")}\"}", events[1].message)
@@ -298,7 +299,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     logs = d.logs
     # Call API once for each stream
-    assert_equal(2, logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(2, logs.select {|l| l =~ /Called PutLogEvents API/ }.size)
 
     sleep 10
 
@@ -335,7 +336,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     events = get_log_events(log_group_name, log_stream_name)
     assert_equal(1, events.size)
-    assert_equal(time.to_i * 1000, events[0].timestamp)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
     assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
   end
 
@@ -420,7 +421,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       end
     end
 
-    assert_match(/failed to set retention policy for Log group/, d.instance.log.logs[0])
+    assert_match(/failed to set retention policy for Log group/, d.logs[0])
   end
 
   def test_log_group_aws_tags_key
@@ -529,6 +530,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
   def test_retrying_on_throttling_exception
     resp = mock()
+    resp.expects(:rejected_log_events_info)
     resp.expects(:next_sequence_token)
     client = Aws::CloudWatchLogs::Client.new
     client.stubs(:put_log_events).
@@ -542,7 +544,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
 
     logs = d.logs
-    assert_equal(2, logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(1, logs.select {|l| l =~ /Called PutLogEvents API/ }.size)
     assert_equal(1, logs.select {|l| l =~ /failed to PutLogEvents/ }.size)
     assert_equal(1, logs.select {|l| l =~ /retry succeeded/ }.size)
   end
@@ -551,7 +553,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     client = Aws::CloudWatchLogs::Client.new
     client.stubs(:put_log_events).
       raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
-
     time = Fluent::Engine.now
     d = create_driver(<<-EOC)
 #{default_config}
@@ -566,7 +567,7 @@ put_log_events_retry_limit 1
     end
 
     logs = d.logs
-    assert_equal(3, logs.select {|l| l =~ /Calling PutLogEvents API/ }.size)
+    assert_equal(0, logs.select {|l| l =~ /Called PutLogEvents API/ }.size)
     assert_equal(3, logs.select {|l| l =~ /failed to PutLogEvents/ }.size)
     assert_equal(1, logs.select {|l| l =~ /failed to PutLogEvents and discard logs/ }.size)
   end
