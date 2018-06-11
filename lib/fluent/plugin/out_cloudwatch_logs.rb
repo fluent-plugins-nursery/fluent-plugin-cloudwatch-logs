@@ -120,6 +120,7 @@ module Fluent::Plugin
     end
 
     def write(chunk)
+      @log_group_name = extract_placeholders(@log_group_name, chunk)
       queue = Thread::Queue.new
 
       chunk.enum_for(:msgpack_each).select {|tag, time, record|
