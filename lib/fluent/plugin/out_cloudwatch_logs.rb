@@ -4,6 +4,7 @@ require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsOutput < Output
+    include Fluent::MessagePackFactory::Mixin
     Fluent::Plugin.register_output('cloudwatch_logs', self)
 
     helpers :compat_parameters, :inject
@@ -108,7 +109,7 @@ module Fluent::Plugin
 
     def format(tag, time, record)
       record = inject_values_to_record(tag, time, record)
-      [tag, time, record].to_msgpack
+      msgpack_packer.pack([tag, time, record]).to_s
     end
 
     def formatted_to_msgpack_binary?
@@ -208,7 +209,7 @@ module Fluent::Plugin
 
         events = []
         rs.each do |t, time, record|
-          time_ms = time * 1000
+          time_ms = (time.to_f * 1000).floor
 
           scrub_record!(record)
           if @message_keys
