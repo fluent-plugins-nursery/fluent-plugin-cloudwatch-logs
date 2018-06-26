@@ -19,7 +19,11 @@ module Fluent::Plugin
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
     config_param :use_log_stream_name_prefix, :bool, default: false
+    config_param :max_retries, :integer, default:60
     config_param :state_file, :string
+    config_param :state_ddb_table, :string, default: "worker_cw_state"
+    config_param :state_type, :string, :default => 'file'
+    config_param :thread_num, :integer, :default => 4
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :json
@@ -32,6 +36,7 @@ module Fluent::Plugin
       super
 
       require 'aws-sdk-cloudwatchlogs'
+      require 'aws-sdk-dynamodb'
     end
 
     def configure(conf)
@@ -58,7 +63,10 @@ module Fluent::Plugin
       end
 
       @logs = Aws::CloudWatchLogs::Client.new(options)
-
+      @log_group_arn = @logs.describe_log_groups({log_group_name_prefix: @log_group_name}).log_groups[0].arn
+      log.info("Cloudwatch ARN #{@log_group_arn}")
+      @ddb = Aws::DynamoDB::Client.new(region: @region)
+      @queue = Queue.new
       @finished = false
       thread_create(:in_cloudwatch_logs_runner, &method(:run))
 
@@ -87,33 +95,128 @@ module Fluent::Plugin
       return @state_file
     end
 
-    def next_token(log_stream_name)
+    def ddb_contruct_key(log_stream_name)
+        @log_group_arn.gsub '*', log_stream_name
+    end
+
+    def file_next_token(log_stream_name)
       return nil unless File.exist?(state_file_for(log_stream_name))
       File.read(state_file_for(log_stream_name)).chomp
     end
 
-    def store_next_token(token, log_stream_name = nil)
+    def ddb_next_token(log_stream_name)
+      params = {
+        table_name: @state_ddb_table,
+        key: {
+          'cw_stream_id' => ddb_contruct_key(log_stream_name)
+        }
+      }
+      begin
+        result = @ddb.get_item(params)
+      rescue Exception => e
+        log.error("Cloudwatch ddb_next_token #{e}")
+        return nil
+      end
+      return nil if not result.item
+      return result.item['token']
+   end
+
+   def file_store_next_token(token, log_stream_name = nil)
       open(state_file_for(log_stream_name), 'w') do |f|
         f.write token
       end
+   end
+
+   def ddb_store_next_token(token, log_stream_name = nil)
+     params = {
+       table_name: @state_ddb_table,
+        item: {
+          'cw_stream_id' => ddb_contruct_key(log_stream_name),
+          'token' => token
+        }
+     }
+     begin
+       result = @ddb.put_item(params)
+     rescue Exception => e
+       log.error("Cloudwatch store_next_token #{e}")
+     end
+   end
+
+    def next_token(log_stream_name)
+      if @state_type == 'file'
+        return file_next_token(log_stream_name)
+      else
+        return ddb_next_token(log_stream_name)
+      end
+    end
+
+    def store_next_token(token, log_stream_name = nil)
+      if @state_type == 'file'
+        file_store_next_token(token, log_stream_name)
+      else
+        ddb_store_next_token(token, log_stream_name)
+      end
+    end
+
+    def process_log(log_stream_name)
+        begin
+          events = get_events(log_stream_name)
+        rescue Exception => e
+          log.warn("Cloudwatch #{@log_group_name} get_events #{e}")
+          events = []
+          sleep 1
+        end
+        log.info("Cloudwatch #{@log_group_name} going to import #{events.length}")
+        c = 0
+        events.each do |event|
+          emit(log_stream_name, event)
+          c = c + 1
+        end
+        log.info("Cloudwatch #{@log_group_name} Emited #{c} events")
+    end
+
+    def consumer()
+      threads = []
+      @thread_num.times do
+       threads << Thread.new do
+        until @queue.empty?
+         work_unit = @queue.pop(true) rescue nil
+         if work_unit
+          process_log(work_unit)
+         end
+        end
+       end
+      end
+      log.info("Cloudwatch #{@log_group_name} waiting for threads to finish...")
+      threads.each { |t| t.join }
+      log.info("Cloudwatch #{@log_group_name} finished threads")
+    end
+
+    def producer()
+        log.info("Cloudwatch #{@log_group_name} Fetching streams")
+        log_streams = describe_log_streams
+        log.info("Cloudwatch #{@log_group_name} found #{log_streams.length} log streams")
+
+        begin
+          log_streams.each do |log_stream|
+            @queue << log_stream.log_stream_name
+          end
+        rescue Exception => e
+          log.warn("Cloudwatch #{@log_group_name} log_stream #{e}")
+          sleep 1
+        end
     end
 
     def run
       @next_fetch_time = Time.now
-
+      log.info("Cloudwatch #{@log_group_name} run")
       until @finished
         if Time.now > @next_fetch_time
           @next_fetch_time += @fetch_interval
 
           if @use_log_stream_name_prefix
-            log_streams = describe_log_streams
-            log_streams.each do |log_stream|
-              log_stream_name = log_stream.log_stream_name
-              events = get_events(log_stream_name)
-              events.each do |event|
-                emit(log_stream_name, event)
-              end
-            end
+            producer()
+            consumer()
           else
             events = get_events(@log_stream_name)
             events.each do |event|
@@ -143,8 +246,24 @@ module Fluent::Plugin
         log_stream_name: log_stream_name
       }
       request[:next_token] = next_token(log_stream_name) if next_token(log_stream_name)
-      response = @logs.get_log_events(request)
-      store_next_token(response.next_forward_token, log_stream_name)
+      flg_retry = true
+      flg_retry_count = 0
+      while flg_retry do
+        begin
+          response = @logs.get_log_events(request)
+          flg_retry = false
+        rescue Exception => e
+          log.warn("Cloudwatch #{@log_group_name} get_events #{flg_retry_count} #{e}")
+          flg_retry_count = flg_retry_count + 1
+          if flg_retry_count > @max_retries
+            log.error("Cloudwatch #{@log_group_name} get_events Max retry limit reached quiting #{e}")
+            return []
+          else
+            sleep 2
+          end
+        end
+      end
+      store_next_token(response.next_forward_token, log_stream_name) if not response.next_forward_token == request[:next_token]
 
       response.events
     end
@@ -166,7 +285,7 @@ module Fluent::Plugin
           log_streams = describe_log_streams(log_streams, response.next_token)
         end
       rescue Exception => e
-        log.warn("cloudwatch no stream found #{@log_stream_name}")
+        log.warn("Cloudwatch no stream found #{@log_stream_name}")
         []
       end
       log_streams
