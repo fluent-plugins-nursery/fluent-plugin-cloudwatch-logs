@@ -20,7 +20,7 @@ module Fluent::Plugin
     config_param :log_stream_name, :string
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :max_retries, :integer, default:60
-    config_param :state_file, :string
+    config_param :state_file, :string, default: "/opt/worker_cw_state"
     config_param :state_ddb_table, :string, default: "worker_cw_state"
     config_param :state_type, :string, :default => 'file'
     config_param :thread_num, :integer, :default => 4
@@ -63,9 +63,14 @@ module Fluent::Plugin
       end
 
       @logs = Aws::CloudWatchLogs::Client.new(options)
+      # Fetch log_group ARN to serve has key for dynamodb
       @log_group_arn = @logs.describe_log_groups({log_group_name_prefix: @log_group_name}).log_groups[0].arn
-      log.info("Cloudwatch ARN #{@log_group_arn}")
-      @ddb = Aws::DynamoDB::Client.new(region: @region)
+
+      if @state_type == 'ddb'
+        @ddb = Aws::DynamoDB::Client.new(region: @region)
+      end
+
+      # Create queue for Thread work
       @queue = Queue.new
       @finished = false
       thread_create(:in_cloudwatch_logs_runner, &method(:run))
@@ -119,28 +124,28 @@ module Fluent::Plugin
       end
       return nil if not result.item
       return result.item['token']
-   end
+    end
 
-   def file_store_next_token(token, log_stream_name = nil)
+    def file_store_next_token(token, log_stream_name = nil)
       open(state_file_for(log_stream_name), 'w') do |f|
         f.write token
       end
-   end
+    end
 
-   def ddb_store_next_token(token, log_stream_name = nil)
-     params = {
+    def ddb_store_next_token(token, log_stream_name = nil)
+      params = {
        table_name: @state_ddb_table,
         item: {
           'cw_stream_id' => ddb_contruct_key(log_stream_name),
           'token' => token
         }
-     }
-     begin
-       result = @ddb.put_item(params)
-     rescue Exception => e
-       log.error("Cloudwatch store_next_token #{e}")
-     end
-   end
+      }
+      begin
+        result = @ddb.put_item(params)
+      rescue Exception => e
+        log.error("Cloudwatch store_next_token #{e}")
+      end
+    end
 
     def next_token(log_stream_name)
       if @state_type == 'file'
@@ -159,33 +164,33 @@ module Fluent::Plugin
     end
 
     def process_log(log_stream_name)
-        begin
-          events = get_events(log_stream_name)
-        rescue Exception => e
-          log.warn("Cloudwatch #{@log_group_name} get_events #{e}")
-          events = []
-          sleep 1
-        end
-        log.info("Cloudwatch #{@log_group_name} going to import #{events.length}")
-        c = 0
-        events.each do |event|
-          emit(log_stream_name, event)
-          c = c + 1
-        end
-        log.info("Cloudwatch #{@log_group_name} Emited #{c} events")
+      begin
+        events = get_events(log_stream_name)
+      rescue Exception => e
+        log.warn("Cloudwatch #{@log_group_name} get_events #{e}")
+        events = []
+        sleep 1
+      end
+      log.info("Cloudwatch #{@log_group_name} going to import #{events.length}")
+      c = 0
+      events.each do |event|
+        emit(log_stream_name, event)
+        c = c + 1
+      end
+      log.info("Cloudwatch #{@log_group_name} Emited #{c} events")
     end
 
     def consumer()
       threads = []
       @thread_num.times do
-       threads << Thread.new do
-        until @queue.empty?
-         work_unit = @queue.pop(true) rescue nil
-         if work_unit
-          process_log(work_unit)
-         end
+        threads << Thread.new do
+          until @queue.empty?
+            work_unit = @queue.pop(true) rescue nil
+            if work_unit
+              process_log(work_unit)
+            end
+          end
         end
-       end
       end
       log.info("Cloudwatch #{@log_group_name} waiting for threads to finish...")
       threads.each { |t| t.join }
@@ -193,18 +198,18 @@ module Fluent::Plugin
     end
 
     def producer()
-        log.info("Cloudwatch #{@log_group_name} Fetching streams")
-        log_streams = describe_log_streams
-        log.info("Cloudwatch #{@log_group_name} found #{log_streams.length} log streams")
+      log.info("Cloudwatch #{@log_group_name} Fetching streams")
+      log_streams = describe_log_streams
+      log.info("Cloudwatch #{@log_group_name} found #{log_streams.length} log streams")
 
-        begin
-          log_streams.each do |log_stream|
-            @queue << log_stream.log_stream_name
-          end
-        rescue Exception => e
-          log.warn("Cloudwatch #{@log_group_name} log_stream #{e}")
-          sleep 1
+      begin
+        log_streams.each do |log_stream|
+          @queue << log_stream.log_stream_name
         end
+      rescue Exception => e
+        log.warn("Cloudwatch #{@log_group_name} log_stream #{e}")
+        sleep 1
+      end
     end
 
     def run
