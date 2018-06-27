@@ -126,7 +126,10 @@ Fetch sample log from CloudWatch Logs:
 * `log_group_name`: name of log group to fetch logs
 * `log_stream_name`: name of log stream to fetch logs
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
+* `max_retries`: Number of retries to try to fetch logs and handling throttling from AWS API, default 60
 * `state_file`: file to store current state (e.g. next\_forward\_token)
+* `state_ddb_table`: DynamoDB table name previously created to store current state of a stream, useful to achieve HA
+* `state_type`: Define where we want to keep state, accepts 'file' or 'ddb', default file
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
@@ -134,6 +137,83 @@ Fetch sample log from CloudWatch Logs:
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 
 This plugin uses [fluent-mixin-config-placeholders](https://github.com/tagomoris/fluent-mixin-config-placeholders) and you can use addtional variables such as %{hostname}, %{uuid}, etc. These variables are useful to put hostname in `log_stream_name`.
+
+When using DynamoDB to keep stream state, you must previously create DDB table using cloudformation you need to define a resource like this:
+
+```
+  DDBTableCWState:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "cw_stream_id"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "cw_stream_id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: !Ref DDBCWStateReadCapacity
+        WriteCapacityUnits: !Ref DDBCWStateWriteCapacity
+      TableName: 'worker_cw_state'
+
+```
+
+You need to give the instance access to the DDB table, using cloudformation:
+
+```
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - Ref: InstanceRole
+
+  DDBCWStateRole:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: DDBCWStateRole
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:*
+          Resource:
+          - !GetAtt DDBTableCWState.Arn
+      Roles:
+      - !Ref InstanceRole
+```
+
+Using IAM policy on the instance role:
+
+```
+{
+    "Statement": [
+        {
+            "Action": [
+                "dynamodb:*"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:<YOU AWS REGION>:<YOUR AWS ACCOUNT>:table/<TABLE NAME>"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}
+```
+
 
 ## Test
 
