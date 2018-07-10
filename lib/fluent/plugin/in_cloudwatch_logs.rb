@@ -22,7 +22,7 @@ module Fluent::Plugin
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
-    config_param :json_handler, :enum, list: [:yajl, :json], :default => :json
+    config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
 
     config_section :parse do
       config_set_default :@type, 'none'

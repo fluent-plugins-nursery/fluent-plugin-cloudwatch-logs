@@ -40,7 +40,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal("tagvalue", d.instance.log_group_aws_tags.fetch("tagkey"))
     assert_equal("tagvalue_2", d.instance.log_group_aws_tags.fetch("tagkey_2"))
     assert_equal(5, d.instance.retention_in_days)
-    assert_equal(:json, d.instance.json_handler)
+    assert_equal(:yajl, d.instance.json_handler)
   end
 
   def test_write
