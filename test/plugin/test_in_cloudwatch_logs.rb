@@ -130,7 +130,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     d.run(expect_emits: 4, timeout: 5)
 
     emits = d.events
-    p emits
     assert_equal(4, emits.size)
     assert_true(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
     assert_true(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
