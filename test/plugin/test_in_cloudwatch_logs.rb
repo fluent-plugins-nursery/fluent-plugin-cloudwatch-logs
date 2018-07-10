@@ -102,15 +102,15 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
     time_ms = (Time.now.to_f * 1000).floor
     put_log_events([
-      {timestamp: time_ms + 10, message: '{"cloudwatch":"logs1"}'},
-      {timestamp: time_ms + 20, message: '{"cloudwatch":"logs2"}'},
+      {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
+      {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
     ])
 
     new_log_stream("testprefix")
     create_log_stream
     put_log_events([
-      {timestamp: time_ms + 30, message: '{"cloudwatch":"logs3"}'},
-      {timestamp: time_ms + 40, message: '{"cloudwatch":"logs4"}'},
+      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
+      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
     ])
 
     sleep 5
@@ -131,10 +131,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
     emits = d.events
     assert_equal(4, emits.size)
-    assert_equal(['test', ((time_ms + 10) / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
-    assert_equal(['test', ((time_ms + 20) / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
-    assert_equal(['test', ((time_ms + 30) / 1000).floor, {'cloudwatch' => 'logs3'}], emits[2])
-    assert_equal(['test', ((time_ms + 40) / 1000).floor, {'cloudwatch' => 'logs4'}], emits[3])
+    assert_true(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
+    assert_true(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
+    assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
+    assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
   end
 
   private
