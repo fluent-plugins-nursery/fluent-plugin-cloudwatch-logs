@@ -343,6 +343,7 @@ module Fluent::Plugin
             "log_stream" => stream_name,
             "new_sequence_token" => token,
           }
+          retry_count += 1
         rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException => err
           if @auto_create_stream && err.message == 'The specified log stream does not exist.'
             log.warn 'Creating log stream because "The specified log stream does not exist." error is got', {
@@ -352,6 +353,7 @@ module Fluent::Plugin
             }
             create_log_stream(group_name, stream_name)
             delete_sequence_token(group_name, stream_name)
+            retry_count += 1
           else
             raise err
           end
