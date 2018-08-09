@@ -1,3 +1,4 @@
+require 'date'
 require 'fluent/plugin/input'
 require 'fluent/plugin/parser'
 require 'yajl'
@@ -18,6 +19,7 @@ module Fluent::Plugin
     config_param :tag, :string
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
+    config_param :log_stream_strftime, :bool, default: false
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
@@ -68,6 +70,10 @@ module Fluent::Plugin
                       when :json
                         JSON
                       end
+      
+      if @log_stream_strftime
+        @log_stream_name = Datetime.now.strftime(@log_stream_name)
+      end
     end
 
     def shutdown
