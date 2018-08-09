@@ -142,9 +142,14 @@ module Fluent::Plugin
         log_group_name: @log_group_name,
         log_stream_name: log_stream_name
       }
-      request[:next_token] = next_token(log_stream_name) if next_token(log_stream_name)
+      log_next_token = next_token(log_stream_name)
+      if !log_next_token.nil? && !log_next_token.empty? 
+        request[:next_token] = log_next_token 
+      end
       response = @logs.get_log_events(request)
-      store_next_token(response.next_forward_token, log_stream_name)
+      if valid_next_token(log_next_token, response.next_forward_token)
+        store_next_token(response.next_forward_token, log_stream_name)
+      end
 
       response.events
     end
@@ -165,6 +170,10 @@ module Fluent::Plugin
         log_streams = describe_log_streams(log_streams, response.next_token)
       end
       log_streams
+    end
+
+    def valid_next_token(prev_token, next_token)
+      return prev_token != next_token.chomp && !next_token.nil?
     end
   end
 end
