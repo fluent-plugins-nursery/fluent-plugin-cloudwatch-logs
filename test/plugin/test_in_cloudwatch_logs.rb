@@ -136,6 +136,45 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
     assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
   end
+  
+  def test_emit_with_strftime
+    new_log_stream("testprefix")
+    create_log_stream
+
+    time_ms = (Time.now.to_f * 1000).floor
+    put_log_events([
+      {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
+      {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
+    ])
+
+    new_log_stream(Datetime.now.strftime("%Y-%m"))
+    create_log_stream
+    put_log_events([
+      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
+      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
+    ])
+
+    sleep 5
+
+    d = create_driver(<<-EOC)
+      tag test
+      @type cloudwatch_logs
+      log_group_name #{log_group_name}
+      log_stream_name "%Y-%m"
+      log_stream_strftime true
+      state_file /tmp/state
+      #{aws_key_id}
+      #{aws_sec_key}
+      #{region}
+      #{endpoint}
+    EOC
+    d.run(expect_emits: 2, timeout: 5)
+
+    emits = d.events
+    assert_equal(2, emits.size)
+    assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
+    assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
+  end
 
   private
   def default_config
