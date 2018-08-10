@@ -1,3 +1,4 @@
+require 'date'
 require 'fluent/plugin/input'
 require 'fluent/plugin/parser'
 require 'yajl'
@@ -17,12 +18,13 @@ module Fluent::Plugin
     config_param :endpoint, :string, :default => nil
     config_param :tag, :string
     config_param :log_group_name, :string
-    config_param :log_stream_name, :string
+    config_param :log_stream_name, :string, :default => nil
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
+    config_param :use_todays_log_stream, :bool, default: false
 
     config_section :parse do
       config_set_default :@type, 'none'
@@ -105,7 +107,7 @@ module Fluent::Plugin
         if Time.now > @next_fetch_time
           @next_fetch_time += @fetch_interval
 
-          if @use_log_stream_name_prefix
+          if @use_log_stream_name_prefix || @use_todays_log_stream
             log_streams = describe_log_streams
             log_streams.each do |log_stream|
               log_stream_name = log_stream.log_stream_name
@@ -143,9 +145,7 @@ module Fluent::Plugin
         log_stream_name: log_stream_name
       }
       log_next_token = next_token(log_stream_name)
-      if !log_next_token.nil? && !log_next_token.empty? 
-        request[:next_token] = log_next_token 
-      end
+      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty? 
       response = @logs.get_log_events(request)
       if valid_next_token(log_next_token, response.next_forward_token)
         store_next_token(response.next_forward_token, log_stream_name)
@@ -159,7 +159,7 @@ module Fluent::Plugin
         log_group_name: @log_group_name
       }
       request[:next_token] = next_token if next_token
-      request[:log_stream_name_prefix] = @log_stream_name
+      request[:log_stream_name_prefix] = @use_todays_log_stream ? get_todays_date : @log_stream_name
       response = @logs.describe_log_streams(request)
       if log_streams
         log_streams.concat(response.log_streams)
@@ -174,6 +174,10 @@ module Fluent::Plugin
 
     def valid_next_token(prev_token, next_token)
       return prev_token != next_token.chomp && !next_token.nil?
+    end
+
+    def get_todays_date
+      return DateTime.now.strftime("%Y/%m/%d")
     end
   end
 end
