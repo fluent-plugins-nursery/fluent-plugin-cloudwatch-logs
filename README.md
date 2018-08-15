@@ -132,6 +132,7 @@ Fetch sample log from CloudWatch Logs:
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
+* `use_todays_log_stream`: use todays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
 
 This plugin uses [fluent-mixin-config-placeholders](https://github.com/tagomoris/fluent-mixin-config-placeholders) and you can use addtional variables such as %{hostname}, %{uuid}, etc. These variables are useful to put hostname in `log_stream_name`.
 
