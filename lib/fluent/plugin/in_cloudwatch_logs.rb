@@ -1,3 +1,4 @@
+require 'date'
 require 'fluent/plugin/input'
 require 'fluent/plugin/parser'
 require 'yajl'
@@ -18,6 +19,7 @@ module Fluent::Plugin
     config_param :tag, :string
     config_param :log_group_name, :string
     config_param :log_stream_name, :string
+    config_param :log_stream_strftime, :bool, default: false
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
@@ -67,7 +69,7 @@ module Fluent::Plugin
                         Yajl
                       when :json
                         JSON
-                      end
+                      end      
     end
 
     def shutdown
@@ -104,9 +106,10 @@ module Fluent::Plugin
       until @finished
         if Time.now > @next_fetch_time
           @next_fetch_time += @fetch_interval
+          log_stream_name_fmt = @log_stream_strftime ? DateTime.now.strftime(@log_stream_name) : @log_stream_name
 
           if @use_log_stream_name_prefix
-            log_streams = describe_log_streams
+            log_streams = describe_log_streams(log_stream_name_fmt)
             log_streams.each do |log_stream|
               log_stream_name = log_stream.log_stream_name
               events = get_events(log_stream_name)
@@ -115,9 +118,9 @@ module Fluent::Plugin
               end
             end
           else
-            events = get_events(@log_stream_name)
+            events = get_events(log_stream_name_fmt)
             events.each do |event|
-              emit(log_stream_name, event)
+              emit(log_stream_name_fmt, event)
             end
           end
         end
@@ -149,12 +152,12 @@ module Fluent::Plugin
       response.events
     end
 
-    def describe_log_streams(log_streams = nil, next_token = nil)
+    def describe_log_streams(log_stream_name, log_streams = nil, next_token = nil)
       request = {
         log_group_name: @log_group_name
       }
       request[:next_token] = next_token if next_token
-      request[:log_stream_name_prefix] = @log_stream_name
+      request[:log_stream_name_prefix] = log_stream_name
       response = @logs.describe_log_streams(request)
       if log_streams
         log_streams.concat(response.log_streams)
@@ -162,7 +165,7 @@ module Fluent::Plugin
         log_streams = response.log_streams
       end
       if response.next_token
-        log_streams = describe_log_streams(log_streams, response.next_token)
+        log_streams = describe_log_streams(log_stream_name, log_streams, response.next_token)
       end
       log_streams
     end

@@ -115,6 +115,7 @@ Fetch sample log from CloudWatch Logs:
   tag cloudwatch.in
   log_group_name group
   log_stream_name stream
+  log_stream_strftime false
   #use_log_stream_name_prefix true
   state_file /var/lib/fluent/group_stream.in.state
   #endpoint http://localhost:5000/
@@ -125,6 +126,7 @@ Fetch sample log from CloudWatch Logs:
 * `tag`: fluentd tag
 * `log_group_name`: name of log group to fetch logs
 * `log_stream_name`: name of log stream to fetch logs
+* `log_stream_strftime`: to use `log_stream_name` as a `strftime` string (default false)
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
