@@ -1,6 +1,7 @@
 require 'test_helper'
 require 'fluent/test/driver/input'
 require 'fluent/test/helpers'
+require 'date'
 
 class CloudwatchLogsInputTest < Test::Unit::TestCase
   include CloudwatchLogsTestHelper
@@ -133,6 +134,63 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal(4, emits.size)
     assert_true(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
     assert_true(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
+    assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
+    assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
+  end
+
+  def test_emit_with_todays_log_Stream
+    new_log_stream("testprefix")
+    create_log_stream
+
+    today = DateTime.now.strftime("%Y/%m/%d")
+    yesterday = (Date.today - 1).strftime("%Y/%m/%d")
+    tomorrow = (Date.today + 1).strftime("%Y/%m/%d")
+
+
+    time_ms = (Time.now.to_f * 1000).floor
+    put_log_events([
+      {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
+      {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
+    ])
+
+    new_log_stream(today)
+    create_log_stream
+    put_log_events([
+      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
+      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
+    ])
+
+    new_log_stream(yesterday)
+    create_log_stream
+    put_log_events([
+      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs5"}'},
+      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs6"}'},
+    ])
+
+    new_log_stream(tomorrow)
+    create_log_stream
+    put_log_events([
+      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs7"}'},
+      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs8"}'},
+    ])
+
+    sleep 5
+
+    d = create_driver(<<-EOC)
+      tag test
+      @type cloudwatch_logs
+      log_group_name #{log_group_name}
+      use_todays_log_stream true
+      state_file /tmp/state
+      #{aws_key_id}
+      #{aws_sec_key}
+      #{region}
+      #{endpoint}
+    EOC
+    d.run(expect_emits: 2, timeout: 5)
+
+    emits = d.events
+    assert_equal(2, emits.size)
     assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
     assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
   end
