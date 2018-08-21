@@ -138,7 +138,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
   end
 
-  def test_emit_with_todays_log_Stream
+  def test_emit_with_todays_log_stream
     new_log_stream("testprefix")
     create_log_stream
 
