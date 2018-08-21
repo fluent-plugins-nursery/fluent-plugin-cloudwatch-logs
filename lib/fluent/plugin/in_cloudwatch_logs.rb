@@ -108,7 +108,9 @@ module Fluent::Plugin
           @next_fetch_time += @fetch_interval
 
           if @use_log_stream_name_prefix || @use_todays_log_stream
-            log_streams = describe_log_streams
+            log_stream_name_prefix = @use_todays_log_stream ? get_todays_date : @log_stream_name
+            log_streams = describe_log_streams(log_stream_name_prefix)
+            log_streams.concat(describe_log_streams(get_yesterdays_date)) if @use_todays_log_stream
             log_streams.each do |log_stream|
               log_stream_name = log_stream.log_stream_name
               events = get_events(log_stream_name)
@@ -154,12 +156,12 @@ module Fluent::Plugin
       response.events
     end
 
-    def describe_log_streams(log_streams = nil, next_token = nil)
+    def describe_log_streams(log_stream_name_prefix, log_streams = nil, next_token = nil)
       request = {
         log_group_name: @log_group_name
       }
       request[:next_token] = next_token if next_token
-      request[:log_stream_name_prefix] = @use_todays_log_stream ? get_todays_date : @log_stream_name
+      request[:log_stream_name_prefix] = log_stream_name_prefix
       response = @logs.describe_log_streams(request)
       if log_streams
         log_streams.concat(response.log_streams)
@@ -167,7 +169,7 @@ module Fluent::Plugin
         log_streams = response.log_streams
       end
       if response.next_token
-        log_streams = describe_log_streams(log_streams, response.next_token)
+        log_streams = describe_log_streams(log_stream_name_prefix, log_streams, response.next_token)
       end
       log_streams
     end
@@ -177,7 +179,11 @@ module Fluent::Plugin
     end
 
     def get_todays_date
-      return DateTime.now.strftime("%Y/%m/%d")
+      return Date.today.strftime("%Y/%m/%d")
+    end
+
+    def get_yesterdays_date
+      return (Date.today - 1).strftime("%Y/%m/%d")
     end
   end
 end

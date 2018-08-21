@@ -174,7 +174,21 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       {timestamp: time_ms + 8000, message: '{"cloudwatch":"logs8"}'},
     ])
 
-    sleep 5
+    new_log_stream(today)
+    create_log_stream
+    put_log_events([
+      {timestamp: time_ms + 9000, message: '{"cloudwatch":"logs9"}'},
+      {timestamp: time_ms + 10000, message: '{"cloudwatch":"logs10"}'},
+    ])
+
+    new_log_stream(yesterday)
+    create_log_stream
+    put_log_events([
+      {timestamp: time_ms + 11000, message: '{"cloudwatch":"logs11"}'},
+      {timestamp: time_ms + 12000, message: '{"cloudwatch":"logs12"}'},
+    ])
+
+    sleep 15
 
     d = create_driver(<<-EOC)
       tag test
@@ -187,18 +201,22 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
       #{endpoint}
     EOC
-    d.run(expect_emits: 2, timeout: 5)
+    d.run(expect_emits: 8, timeout: 15)
 
     emits = d.events
-    assert_equal(2, emits.size)
+    assert_equal(8, emits.size)
     assert_false(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
     assert_false(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
     assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
     assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
-    assert_false(emits.include? ['test', ((time_ms + 5000) / 1000).floor, {'cloudwatch' => 'logs5'}])
-    assert_false(emits.include? ['test', ((time_ms + 6000) / 1000).floor, {'cloudwatch' => 'logs6'}])
+    assert_true(emits.include? ['test', ((time_ms + 5000) / 1000).floor, {'cloudwatch' => 'logs5'}])
+    assert_true(emits.include? ['test', ((time_ms + 6000) / 1000).floor, {'cloudwatch' => 'logs6'}])
     assert_false(emits.include? ['test', ((time_ms + 7000) / 1000).floor, {'cloudwatch' => 'logs7'}])
     assert_false(emits.include? ['test', ((time_ms + 8000) / 1000).floor, {'cloudwatch' => 'logs8'}])
+    assert_true(emits.include? ['test', ((time_ms + 9000) / 1000).floor, {'cloudwatch' => 'logs9'}])
+    assert_true(emits.include? ['test', ((time_ms + 10000) / 1000).floor, {'cloudwatch' => 'logs10'}])
+    assert_true(emits.include? ['test', ((time_ms + 11000) / 1000).floor, {'cloudwatch' => 'logs11'}])
+    assert_true(emits.include? ['test', ((time_ms + 12000) / 1000).floor, {'cloudwatch' => 'logs12'}])
   end
 
   private
