@@ -163,15 +163,15 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     new_log_stream(yesterday)
     create_log_stream
     put_log_events([
-      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs5"}'},
-      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs6"}'},
+      {timestamp: time_ms + 5000, message: '{"cloudwatch":"logs5"}'},
+      {timestamp: time_ms + 6000, message: '{"cloudwatch":"logs6"}'},
     ])
 
     new_log_stream(tomorrow)
     create_log_stream
     put_log_events([
-      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs7"}'},
-      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs8"}'},
+      {timestamp: time_ms + 7000, message: '{"cloudwatch":"logs7"}'},
+      {timestamp: time_ms + 8000, message: '{"cloudwatch":"logs8"}'},
     ])
 
     sleep 5
@@ -191,8 +191,14 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
     emits = d.events
     assert_equal(2, emits.size)
+    assert_false(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
+    assert_false(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
     assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
     assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
+    assert_false(emits.include? ['test', ((time_ms + 5000) / 1000).floor, {'cloudwatch' => 'logs5'}])
+    assert_false(emits.include? ['test', ((time_ms + 6000) / 1000).floor, {'cloudwatch' => 'logs6'}])
+    assert_false(emits.include? ['test', ((time_ms + 7000) / 1000).floor, {'cloudwatch' => 'logs7'}])
+    assert_false(emits.include? ['test', ((time_ms + 8000) / 1000).floor, {'cloudwatch' => 'logs8'}])
   end
 
   private
