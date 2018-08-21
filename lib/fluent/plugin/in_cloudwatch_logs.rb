@@ -17,7 +17,7 @@ module Fluent::Plugin
     config_param :endpoint, :string, :default => nil
     config_param :tag, :string
     config_param :log_group_name, :string
-    config_param :log_stream_name, :string
+    config_param :log_stream_name, :string, :default => nil
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
@@ -37,6 +37,12 @@ module Fluent::Plugin
     def configure(conf)
       compat_parameters_convert(conf, :parser)
       super
+      
+      # Allow to leave empty stream_name only if used as prefix
+      if @log_stream_name.nil? and not @use_log_stream_name_prefix 
+        raise Fluent::ConfigError, "log_stream_name can be empty only when used as a prefix (use_log_stream_name_prefix)."
+      end
+
       configure_parser(conf)
     end
 
@@ -154,7 +160,7 @@ module Fluent::Plugin
         log_group_name: @log_group_name
       }
       request[:next_token] = next_token if next_token
-      request[:log_stream_name_prefix] = @log_stream_name
+      request[:log_stream_name_prefix] = @log_stream_name if @log_stream_name
       response = @logs.describe_log_streams(request)
       if log_streams
         log_streams.concat(response.log_streams)

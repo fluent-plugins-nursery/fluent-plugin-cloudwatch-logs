@@ -124,8 +124,8 @@ Fetch sample log from CloudWatch Logs:
 
 * `tag`: fluentd tag
 * `log_group_name`: name of log group to fetch logs
-* `log_stream_name`: name of log stream to fetch logs
-* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
+* `log_stream_name`: name of log stream to fetch logs; can be empty only if `use_log_stream_name_prefix` is set to true
+* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false); prefix can be empty to retrieve all log streams in group
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
