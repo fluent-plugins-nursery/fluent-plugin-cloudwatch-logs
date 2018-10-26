@@ -122,6 +122,14 @@ module Fluent::Plugin
       true
     end
 
+    def get_path(paths, record)
+      curr = record
+      paths.split('.').each do |path|
+        curr = curr[path]
+      end
+      curr
+    end
+
     def write(chunk)
       queue = Thread::Queue.new
 
@@ -140,7 +148,7 @@ module Fluent::Plugin
                   if @remove_log_group_name_key
                     record.delete(@log_group_name_key)
                   else
-                    record[@log_group_name_key]
+                    get_path(@log_group_name_key, record)
                   end
                 else
                   @log_group_name
@@ -153,7 +161,7 @@ module Fluent::Plugin
                    if @remove_log_stream_name_key
                      record.delete(@log_stream_name_key)
                    else
-                     record[@log_stream_name_key]
+                     get_path(@log_stream_name_key, record)
                    end
                  else
                    @log_stream_name
