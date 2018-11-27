@@ -22,7 +22,7 @@ module Fluent::Plugin
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
     config_param :auto_create_stream, :bool, default: false
-    config_param :message_keys, :string, :default => nil
+    config_param :message_keys, :array, :default => [], value_type: :string
     config_param :max_message_length, :integer, :default => nil
     config_param :max_events_per_batch, :integer, :default => 10000
     config_param :use_tag_as_group, :bool, :default => false  # TODO: Rename to use_tag_as_group_name ?
@@ -217,8 +217,8 @@ module Fluent::Plugin
           time_ms = (time.to_f * 1000).floor
 
           scrub_record!(record)
-          if @message_keys
-            message = @message_keys.split(',').map {|k| record[k].to_s }.join(' ')
+          unless @message_keys.empty?
+            message = @message_keys.map {|k| record[k].to_s }.join(' ')
           else
             message = @json_handler.dump(record)
           end
