@@ -29,6 +29,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       auto_create_stream false
       log_group_aws_tags { "tagkey": "tagvalue", "tagkey_2": "tagvalue_2"}
       retention_in_days 5
+      message_keys fluentd, aws, cloudwatch
     EOC
 
     assert_equal('test_id', d.instance.aws_key_id)
@@ -41,6 +42,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal("tagvalue_2", d.instance.log_group_aws_tags.fetch("tagkey_2"))
     assert_equal(5, d.instance.retention_in_days)
     assert_equal(:yajl, d.instance.json_handler)
+    assert_equal(["fluentd","aws","cloudwatch"], d.instance.message_keys)
   end
 
   def test_write
@@ -222,7 +224,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     config = {'@type' => 'cloudwatch_logs',
               'auto_create_stream' => true,
-              'message_keys' => "message,cloudwatch",
+              'message_keys' => ["message","cloudwatch"],
               'log_stream_name' => "${tag}",
               'log_group_name' => log_group_name}
     config.merge!(config_elementify(aws_key_id)) if aws_key_id
