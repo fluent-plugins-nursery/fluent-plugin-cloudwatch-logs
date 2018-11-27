@@ -123,6 +123,9 @@ module Fluent::Plugin
     end
 
     def write(chunk)
+      log_group_name = extract_placeholders(@log_group_name, chunk) if @log_group_name
+      log_stream_name = extract_placeholders(@log_stream_name, chunk) if @log_stream_name
+
       queue = Thread::Queue.new
 
       chunk.enum_for(:msgpack_each).select {|tag, time, record|
@@ -143,7 +146,7 @@ module Fluent::Plugin
                     record[@log_group_name_key]
                   end
                 else
-                  @log_group_name
+                  log_group_name
                 end
 
         stream = case
@@ -156,7 +159,7 @@ module Fluent::Plugin
                      record[@log_stream_name_key]
                    end
                  else
-                   @log_stream_name
+                   log_stream_name
                  end
 
         [group, stream]

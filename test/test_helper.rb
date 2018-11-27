@@ -36,6 +36,10 @@ module CloudwatchLogsTestHelper
     "endpoint #{ENV['endpoint']}" if ENV['endpoint']
   end
 
+  def config_elementify(conf)
+    conf.split(' ').each_slice(2).map{|k, v| {k => v}}.first
+  end
+
   def log_stream_name(log_stream_name_prefix = nil)
     if !@log_stream_name
       new_log_stream(log_stream_name_prefix)
