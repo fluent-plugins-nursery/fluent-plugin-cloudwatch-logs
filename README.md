@@ -262,6 +262,30 @@ In this case IAM can be used to allow the fluentd instance in one account ("A") 
 </source>
 ```
 
+### Using build-in placeholders, but they don't replace placeholders with actual values, why?
+
+Built-in placeholders use buffer metadata when replacing placeholders with actual values.
+So, you should specify buffer attributes what you want to replace placeholders with.
+
+Using `${tag}` placeholders, you should specify `tag` attributes in buffer:
+
+```aconf
+<buffer tag>
+  @type memory
+</buffer>
+```
+
+Using `%Y%m%d` placeholders, you should specify `time` attributes in buffer:
+
+```aconf
+<buffer time>
+  @type memory
+  timekey 3600
+</buffer>
+```
+
+In more detail, please refer to [the officilal document for built-in placeholders](https://docs.fluentd.org/v1.0/articles/buffer-section#placeholders).
+
 ## TODO
 
 * out_cloudwatch_logs
