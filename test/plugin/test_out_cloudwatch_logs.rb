@@ -257,6 +257,44 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('message2 logs2', events[1].message)
   end
 
+  def test_write_use_placeholders_parts
+    new_log_stream
+
+    config = {'@type' => 'cloudwatch_logs',
+              'auto_create_stream' => true,
+              'message_keys' => ["message","cloudwatch"],
+              'log_stream_name' => "${tag[0]}-${tag[1]}-${tag[2]}-${tag[3]}",
+              'log_group_name' => log_group_name}
+    config.merge!(config_elementify(aws_key_id)) if aws_key_id
+    config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+    config.merge!(config_elementify(region)) if region
+    config.merge!(config_elementify(endpoint)) if endpoint
+
+    d = create_driver(
+      Fluent::Config::Element.new('ROOT', '', config,[
+                                    Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                  '@type' => 'memory',
+                                                                  'timekey' => 3600
+                                                                }, [])
+                                  ])
+    )
+
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
+
+    sleep 10
+
+    events = get_log_events(log_group_name, 'fluent-plugin-cloudwatch-test')
+    assert_equal(2, events.size)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+    assert_equal('message1 logs1', events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal('message2 logs2', events[1].message)
+  end
+
   def test_include_time_key
     new_log_stream
 
