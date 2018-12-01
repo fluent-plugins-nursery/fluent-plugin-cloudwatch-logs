@@ -109,14 +109,19 @@ module Fluent::Plugin
 
           if @use_log_stream_name_prefix || @use_todays_log_stream
             log_stream_name_prefix = @use_todays_log_stream ? get_todays_date : @log_stream_name
-            log_streams = describe_log_streams(log_stream_name_prefix)
-            log_streams.concat(describe_log_streams(get_yesterdays_date)) if @use_todays_log_stream
-            log_streams.each do |log_stream|
-              log_stream_name = log_stream.log_stream_name
-              events = get_events(log_stream_name)
-              events.each do |event|
-                emit(log_stream_name, event)
+            begin
+              log_streams = describe_log_streams(log_stream_name_prefix)
+              log_streams.concat(describe_log_streams(get_yesterdays_date)) if @use_todays_log_stream
+              log_streams.each do |log_stream|
+                log_stream_name = log_stream.log_stream_name
+                events = get_events(log_stream_name)
+                events.each do |event|
+                  emit(log_stream_name, event)
+                end
               end
+            rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException
+              log.warn "'#{@log_stream_name}' prefixed log stream(s) are not found"
+              next
             end
           else
             events = get_events(@log_stream_name)
