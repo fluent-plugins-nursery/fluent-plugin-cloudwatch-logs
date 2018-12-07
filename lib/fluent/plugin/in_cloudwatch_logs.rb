@@ -14,6 +14,7 @@ module Fluent::Plugin
     config_param :aws_sts_role_arn, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
     config_param :region, :string, :default => nil
+    config_param :ddb_region, :string, :default => 'us-west-2'
     config_param :endpoint, :string, :default => nil
     config_param :tag, :string
     config_param :log_group_name, :string
@@ -67,7 +68,7 @@ module Fluent::Plugin
       @log_group_arn = @logs.describe_log_groups({log_group_name_prefix: @log_group_name}).log_groups[0].arn
 
       if @state_type == 'ddb'
-        @ddb = Aws::DynamoDB::Client.new(region: @region)
+        @ddb = Aws::DynamoDB::Client.new(region: @ddb_region)
       end
 
       # Create queue for Thread work
