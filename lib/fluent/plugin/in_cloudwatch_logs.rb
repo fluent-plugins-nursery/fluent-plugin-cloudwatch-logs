@@ -136,7 +136,7 @@ module Fluent::Plugin
 
     def emit(stream, event)
       time = (event.timestamp / 1000).floor
-      router.emit(@tag, time, {:ingestion_time=>event.ingestion_time,:timestamp=>event.timestamp,:message=>event.message})
+      router.emit(@tag, time, {"ingestion_time"=>event.ingestion_time,"timestamp"=>event.timestamp,"message"=>event.message})
     end
 
     def get_events(log_stream_name)
