@@ -4,6 +4,15 @@
 
 [CloudWatch Logs](http://aws.amazon.com/blogs/aws/cloudwatch-log-service/) Plugin for Fluentd
 
+## Requirements
+
+|fluent-plugin-cloudwatch-logs|     fluentd      |  ruby  |
+|-----------------------------|------------------|--------|
+|     >= 0.5.0                | >= 0.14.15       | >= 2.1 |
+|     <= 0.4.5                | ~> 0.12.0 *      | >= 1.9 |
+
+* May not support all future fluentd features
+
 ## Installation
 
     $ gem install fluent-plugin-cloudwatch-logs
