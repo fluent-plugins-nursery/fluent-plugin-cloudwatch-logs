@@ -93,6 +93,7 @@ Fetch sample log from CloudWatch Logs:
   #put_log_events_disable_retry_limit false
   #endpoint http://localhost:5000/
   #json_handler json
+  #log_rejected_request true
 </match>
 ```
 
@@ -115,6 +116,7 @@ Fetch sample log from CloudWatch Logs:
 * `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `json_handler`: name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
+* `log_rejected_request`: output `rejected_log_events_info` request log. (defaults to false)
 
 ### in_cloudwatch_logs
 
