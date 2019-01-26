@@ -43,6 +43,7 @@ module Fluent::Plugin
     config_param :retention_in_days_key, :string, default: nil
     config_param :remove_retention_in_days, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
+    config_param :log_rejected_resquest, :bool, :default => false
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -326,8 +327,7 @@ module Fluent::Plugin
         begin
           t = Time.now
           response = @logs.put_log_events(args)
-          log.warn response.rejected_log_events_info if response.rejected_log_events_info != nil
-          log.debug "Called PutLogEvents API", {
+          request =  {
             "group" => group_name,
             "stream" => stream_name,
             "events_count" => events.size,
@@ -336,6 +336,12 @@ module Fluent::Plugin
             "thread" => Thread.current.object_id,
             "request_sec" => Time.now - t,
           }
+          if response.rejected_log_events_info != nil && @log_rejected_request
+            log.warn response.rejected_log_events_info
+            log.warn "Called PutLogEvents API", request
+          else
+            log.debug "Called PutLogEvents API", request
+          end
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
           log_stream = find_log_stream(group_name, stream_name)
