@@ -43,7 +43,7 @@ module Fluent::Plugin
     config_param :retention_in_days_key, :string, default: nil
     config_param :remove_retention_in_days, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
-    config_param :log_rejected_resquest, :bool, :default => false
+    config_param :log_rejected_request, :bool, :default => false
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
