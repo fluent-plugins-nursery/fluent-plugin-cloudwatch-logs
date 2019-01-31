@@ -97,26 +97,34 @@ Fetch sample log from CloudWatch Logs:
 </match>
 ```
 
-* `log_group_name`: name of log group to store logs
-* `log_stream_name`: name of log stream to store logs
-* `auto_create_stream`: to create log group and stream automatically
-* `message_keys`: keys to send messages as events
-* `max_message_length`: maximum length of the message
-* `max_events_per_batch`: maximum number of events to send at once (default 10000)
-* `use_tag_as_group`: to use tag as a group name
-* `use_tag_as_stream`: to use tag as a stream name
+* `auto_create_stream`: to create log group and stream automatically. (defaults to false)
+* `concurrency`: use to set the number of threads pushing data to CloudWatch. (default: 1)
+* `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `http_proxy`: use to set an optional HTTP proxy
 * `include_time_key`: include time key as part of the log entry (defaults to UTC)
+* `json_handler`: name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 * `localtime`: use localtime timezone for `include_time_key` output (overrides UTC default)
+* `log_group_aws_tags`: set a hash with keys and values to tag the log group resource
+* `log_group_aws_tags_key`: use specified field of records as AWS tags for the log group
+* `log_group_name`: name of log group to store logs
 * `log_group_name_key`: use specified field of records as log group name
+* `log_rejected_request`: output `rejected_log_events_info` request log. (defaults to false)
+* `log_stream_name`: name of log stream to store logs
 * `log_stream_name_key`: use specified field of records as log stream name
+* `max_events_per_batch`: maximum number of events to send at once (default 10000)
+* `max_message_length`: maximum length of the message
+* `message_keys`: keys to send messages as events
+* `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
+* `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)
+* `put_log_events_retry_wait`: time before retrying PutLogEvents (retry interval increases exponentially like `put_log_events_retry_wait * (2 ^ retry_count)`)
+* `remove_log_group_aws_tags_key`: remove field specified by `log_group_aws_tags_key`
 * `remove_log_group_name_key`: remove field specified by `log_group_name_key`
 * `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
-* `put_log_events_retry_wait`: time before retrying PutLogEvents (retry interval increases exponentially like `put_log_events_retry_wait * (2 ^ retry_count)`)
-* `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)
-* `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
-* `endpoint`: use this parameter to connect to the local API endpoint (for testing)
-* `json_handler`: name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
-* `log_rejected_request`: output `rejected_log_events_info` request log. (defaults to false)
+* `remove_retention_in_days`: remove field specified by `retention_in_days`
+* `retention_in_days`: use to set the expiry time for log group when created with `auto_create_stream`. (default to no expiry)
+* `retention_in_days_key`: use specified field of records as retention period
+* `use_tag_as_group`: to use tag as a group name
+* `use_tag_as_stream`: to use tag as a stream name
 
 ### in_cloudwatch_logs
 
@@ -133,16 +141,18 @@ Fetch sample log from CloudWatch Logs:
 </source>
 ```
 
-* `tag`: fluentd tag
-* `log_group_name`: name of log group to fetch logs
-* `log_stream_name`: name of log stream to fetch logs
-* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
-* `state_file`: file to store current state (e.g. next\_forward\_token)
-* `endpoint`: use this parameter to connect to the local API endpoint (for testing)
-* `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
+* `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
+* `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `fetch_interval`: time period in seconds between checking CloudWatch for new logs. (default: 60)
+* `http_proxy`: use to set an optional HTTP proxy
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
+* `log_group_name`: name of log group to fetch logs
+* `log_stream_name`: name of log stream to fetch logs
+* `state_file`: file to store current state (e.g. next\_forward\_token)
+* `tag`: fluentd tag
+* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
 
 ## Test
