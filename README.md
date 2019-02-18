@@ -6,10 +6,10 @@
 
 ## Requirements
 
-|fluent-plugin-cloudwatch-logs|     fluentd      |  ruby  |
-|-----------------------------|------------------|--------|
-|     >= 0.5.0                | >= 0.14.15       | >= 2.1 |
-|     <= 0.4.5                | ~> 0.12.0 *      | >= 1.9 |
+| fluent-plugin-cloudwatch-logs | fluentd     | ruby   |
+| ----------------------------- | ----------- | ------ |
+| >= 0.5.0                      | >= 0.14.15  | >= 2.1 |
+| <= 0.4.5                      | ~> 0.12.0 * | >= 1.9 |
 
 * May not support all future fluentd features
 
@@ -141,6 +141,7 @@ Fetch sample log from CloudWatch Logs:
 </source>
 ```
 
+* `add_log_group_name`: adds the log_group_name to the record with key `log_group_name_key` (default: `false`)
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
@@ -149,10 +150,12 @@ Fetch sample log from CloudWatch Logs:
 * `http_proxy`: use to set an optional HTTP proxy
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 * `log_group_name`: name of log group to fetch logs
+* `log_group_name_key`: key to use when `add_log_group_name` is set (default: `log_group`)
 * `log_stream_name`: name of log stream to fetch logs
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 * `tag`: fluentd tag
-* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
+* `use_log_group_name_prefix`: to use `log_group_name` as log group name prefix (default `false`)
+* `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default `false`)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
 
 ## Test

@@ -18,6 +18,8 @@ module Fluent::Plugin
     config_param :endpoint, :string, :default => nil
     config_param :tag, :string
     config_param :log_group_name, :string
+    config_param :add_log_group_name, :bool, default: false
+    config_param :log_group_name_key, :string, default: 'log_group'
     config_param :use_log_group_name_prefix, :bool, default: false
     config_param :log_stream_name, :string, :default => nil
     config_param :use_log_stream_name_prefix, :bool, default: false
@@ -147,9 +149,17 @@ module Fluent::Plugin
     def emit(group, stream, event)
       if @parser
         @parser.parse(event.message) {|time, record|
+          if @add_log_group_name
+            record[@log_group_name_key] = group
+          end
+
           router.emit(@tag, time, record)
         }
       else
+        if @add_log_group_name
+          record[@log_group_name_key] = group
+        end
+
         time = (event.timestamp / 1000).floor
         record = @json_handler.load(event.message)
         router.emit(@tag, time, record)
