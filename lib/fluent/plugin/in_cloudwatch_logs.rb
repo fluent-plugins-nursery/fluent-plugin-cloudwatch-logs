@@ -111,13 +111,12 @@ module Fluent::Plugin
           @next_fetch_time += @fetch_interval
 
           if @use_log_group_name_prefix
-            log_groups = describe_log_groups(@log_group_name)
+            log_group_names = describe_log_groups(@log_group_name).map{|log_group| log_group.log_group_name}
           else
-            log_groups = [@log_group_name]
+            log_group_names = [@log_group_name]
           end
 
-          log_groups.each do |log_group|
-            log_group_name = log_group.log_group_name
+          log_group_names.each do |log_group_name|
             if @use_log_stream_name_prefix || @use_todays_log_stream
               log_stream_name_prefix = @use_todays_log_stream ? get_todays_date : @log_stream_name
               begin
@@ -172,7 +171,7 @@ module Fluent::Plugin
         log_stream_name: log_stream_name
       }
       log_next_token = next_token(log_group_name, log_stream_name)
-      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty? 
+      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty?
       response = @logs.get_log_events(request)
       if valid_next_token(log_next_token, response.next_forward_token)
         store_next_token(response.next_forward_token, log_group_name, log_stream_name)
@@ -198,7 +197,7 @@ module Fluent::Plugin
       end
       log_streams
     end
-    
+
     def describe_log_groups(log_group_name_prefix, log_groups = nil, next_token = nil)
       request = {
         log_group_name_prefix: log_group_name_prefix
