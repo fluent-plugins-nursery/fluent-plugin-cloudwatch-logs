@@ -82,6 +82,8 @@ Fetch sample log from CloudWatch Logs:
   #max_message_length 32768
   #use_tag_as_group false
   #use_tag_as_stream false
+  #use_todays_log_stream_prefix false
+  #use_todays_log_stream_prefix_format %Y%m%d
   #include_time_key true
   #localtime true
   #log_group_name_key group_name_key
@@ -125,6 +127,8 @@ Fetch sample log from CloudWatch Logs:
 * `retention_in_days_key`: use specified field of records as retention period
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name
+* `use_todays_log_stream_prefix`: to use date prefix as a stream name (default false)
+* `use_todays_log_stream_prefix_format`:  to use date prefix format as a stream name (default empty)
 
 ### in_cloudwatch_logs
 

@@ -219,6 +219,64 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal('message2 logs2', events[1].message)
   end
 
+  def test_write_use_todays_log_stream_prefix
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    message_keys message,cloudwatch
+    use_todays_log_stream_prefix true
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
+    EOC
+
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
+
+    sleep 10
+
+    events = get_log_events(log_group_name, get_todays_date + log_stream_name)
+    assert_equal(2, events.size)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+    assert_equal('message1 logs1', events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal('message2 logs2', events[1].message)
+  end
+
+  def test_write_use_todays_log_stream_prefix_with_format
+    new_log_stream
+
+    d = create_driver(<<-EOC)
+    #{default_config}
+    message_keys message,cloudwatch
+    use_todays_log_stream_prefix true
+    use_todays_log_stream_prefix_format "%Y%m%d"
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
+    EOC
+
+    time = event_time
+    d.run(default_tag: fluentd_tag) do
+      d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'message1'})
+      d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'message2'})
+    end
+
+    sleep 10
+    puts
+    puts get_todays_date("%Y%m%d")
+    puts log_stream_name
+
+    events = get_log_events(log_group_name, get_todays_date("%Y%m%d") + log_stream_name)
+    assert_equal(2, events.size)
+    assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+    assert_equal('message1 logs1', events[0].message)
+    assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+    assert_equal('message2 logs2', events[1].message)
+  end
+
   def test_write_use_placeholders
     new_log_stream
 

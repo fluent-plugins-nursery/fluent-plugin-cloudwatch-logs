@@ -102,4 +102,8 @@ module CloudwatchLogsTestHelper
     }
     logs.put_log_events(args)
   end
+
+  def get_todays_date(format = "%Y/%m/%d")
+    return Date.today.strftime(format)
+  end
 end

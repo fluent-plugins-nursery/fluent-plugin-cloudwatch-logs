@@ -1,3 +1,4 @@
+require 'date'
 require 'fluent/plugin/output'
 require 'thread'
 require 'yajl'
@@ -44,6 +45,8 @@ module Fluent::Plugin
     config_param :remove_retention_in_days, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
     config_param :log_rejected_request, :bool, :default => false
+    config_param :use_todays_log_stream_prefix, :bool, default: false
+    config_param :use_todays_log_stream_prefix_format, :string, default: nil
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -124,6 +127,8 @@ module Fluent::Plugin
     end
 
     def write(chunk)
+      @log_stream_name = get_todays_date + @log_stream_name if @use_todays_log_stream_prefix
+
       log_group_name = extract_placeholders(@log_group_name, chunk) if @log_group_name
       log_stream_name = extract_placeholders(@log_stream_name, chunk) if @log_stream_name
 
@@ -465,6 +470,11 @@ module Fluent::Plugin
         sleep 0.1
       end
       nil
+    end
+
+    def get_todays_date
+      @use_todays_log_stream_prefix_format ||=  "%Y/%m/%d"
+      return Date.today.strftime(@use_todays_log_stream_prefix_format)
     end
   end
 end
