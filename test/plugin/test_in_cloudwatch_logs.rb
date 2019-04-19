@@ -61,6 +61,26 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
   end
 
+  def test_emit_non_json
+    create_log_stream
+
+    time_ms = (Time.now.to_f * 1000).floor
+    put_log_events([
+      {timestamp: time_ms, message: 'Cloudwatch non json logs1'},
+      {timestamp: time_ms, message: 'Cloudwatch non json logs2'},
+    ])
+
+    sleep 5
+
+    d = create_driver(non_json_format_config)
+    d.run(expect_emits: 2, timeout: 5)
+
+    emits = d.events
+    assert_equal(2, emits.size)
+    assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+    assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+  end
+
   def test_emit_width_format
     create_log_stream
 
@@ -235,6 +255,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     EOC
   end
 
+  private
+  def non_json_format_config
+    default_config.concat("format none")
+  end
   def create_driver(conf = default_config)
     Fluent::Test::Driver::Input.new(Fluent::Plugin::CloudwatchLogsInput).configure(conf)
   end

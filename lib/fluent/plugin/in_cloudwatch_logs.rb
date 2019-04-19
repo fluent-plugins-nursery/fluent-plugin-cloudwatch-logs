@@ -134,13 +134,13 @@ module Fluent::Plugin
       end
     end
 
-    def emit(stream, event)
+    def emit(stream, event) 
+      time = (event.timestamp / 1000).floor
       if @parser
-        @parser.parse(event.message) {|time, record|
+        @parser.parse(event.message) {|parsed_time,record|           
           router.emit(@tag, time, record)
         }
       else
-        time = (event.timestamp / 1000).floor
         record = @json_handler.load(event.message)
         router.emit(@tag, time, record)
       end
