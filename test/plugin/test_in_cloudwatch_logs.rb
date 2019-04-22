@@ -259,6 +259,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   def non_json_format_config
     default_config.concat("format none")
   end
+  
   def create_driver(conf = default_config)
     Fluent::Test::Driver::Input.new(Fluent::Plugin::CloudwatchLogsInput).configure(conf)
   end
