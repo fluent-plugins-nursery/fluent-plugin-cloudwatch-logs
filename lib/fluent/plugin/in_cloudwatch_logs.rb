@@ -9,21 +9,21 @@ module Fluent::Plugin
 
     helpers :parser, :thread, :compat_parameters
 
-    config_param :aws_key_id, :string, :default => nil, :secret => true
-    config_param :aws_sec_key, :string, :default => nil, :secret => true
+    config_param :aws_key_id, :string, default: nil, secret: true
+    config_param :aws_sec_key, :string, default: nil, secret: true
     config_param :aws_use_sts, :bool, default: false
     config_param :aws_sts_role_arn, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
-    config_param :region, :string, :default => nil
-    config_param :endpoint, :string, :default => nil
+    config_param :region, :string, default: nil
+    config_param :endpoint, :string, default: nil
     config_param :tag, :string
     config_param :log_group_name, :string
-    config_param :log_stream_name, :string, :default => nil
+    config_param :log_stream_name, :string, default: nil
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
-    config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
+    config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
     config_param :use_todays_log_stream, :bool, default: false
 
     config_section :parse do
