@@ -16,6 +16,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     clear_log_group
   end
 
+  sub_test_case "configure" do
   def test_configure
     d = create_driver(<<-EOC)
       @type cloudwatch_logs
@@ -41,7 +42,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal(:yajl, d.instance.json_handler)
     assert_equal(true, d.instance.use_aws_timestamp)
   end
+  end
 
+  sub_test_case "real world" do
   def test_emit
     create_log_stream
 
@@ -260,6 +263,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_true(emits.include? ['test', ((time_ms + 10000) / 1000).floor, {'cloudwatch' => 'logs10'}])
     assert_true(emits.include? ['test', ((time_ms + 11000) / 1000).floor, {'cloudwatch' => 'logs11'}])
     assert_true(emits.include? ['test', ((time_ms + 12000) / 1000).floor, {'cloudwatch' => 'logs12'}])
+  end
   end
 
   private
