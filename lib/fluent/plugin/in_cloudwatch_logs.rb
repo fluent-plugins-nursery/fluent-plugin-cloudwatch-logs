@@ -180,15 +180,15 @@ module Fluent::Plugin
     end
 
     def valid_next_token(prev_token, next_token)
-      return prev_token != next_token.chomp && !next_token.nil?
+      prev_token != next_token.chomp && !next_token.nil?
     end
 
     def get_todays_date
-      return Date.today.strftime("%Y/%m/%d")
+      Date.today.strftime("%Y/%m/%d")
     end
 
     def get_yesterdays_date
-      return (Date.today - 1).strftime("%Y/%m/%d")
+      (Date.today - 1).strftime("%Y/%m/%d")
     end
   end
 end
