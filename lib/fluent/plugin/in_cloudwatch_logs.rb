@@ -152,7 +152,7 @@ module Fluent::Plugin
         log_stream_name: log_stream_name
       }
       log_next_token = next_token(log_stream_name)
-      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty? 
+      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty?
       response = @logs.get_log_events(request)
       if valid_next_token(log_next_token, response.next_forward_token)
         store_next_token(response.next_forward_token, log_stream_name)
