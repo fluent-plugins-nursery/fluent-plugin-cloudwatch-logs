@@ -95,7 +95,7 @@ module Fluent::Plugin
     end
 
     def store_next_token(token, log_stream_name = nil)
-      open(state_file_for(log_stream_name), 'w') do |f|
+      File.open(state_file_for(log_stream_name), 'w') do |f|
         f.write token
       end
     end
