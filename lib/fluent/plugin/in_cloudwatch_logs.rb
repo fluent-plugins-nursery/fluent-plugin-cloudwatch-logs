@@ -180,7 +180,7 @@ module Fluent::Plugin
     end
 
     def valid_next_token(prev_token, next_token)
-      prev_token != next_token.chomp && !next_token.nil?
+      next_token && prev_token != next_token.chomp
     end
 
     def get_todays_date
