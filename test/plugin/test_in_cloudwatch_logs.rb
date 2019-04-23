@@ -17,108 +17,108 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   end
 
   sub_test_case "configure" do
-  def test_configure
-    d = create_driver(<<-EOC)
-      @type cloudwatch_logs
-      aws_key_id test_id
-      aws_sec_key test_key
-      region us-east-1
-      tag test
-      log_group_name group
-      log_stream_name stream
-      use_log_stream_name_prefix true
-      state_file /tmp/state
-      use_aws_timestamp true
-    EOC
+    def test_configure
+      d = create_driver(<<-EOC)
+        @type cloudwatch_logs
+        aws_key_id test_id
+        aws_sec_key test_key
+        region us-east-1
+        tag test
+        log_group_name group
+        log_stream_name stream
+        use_log_stream_name_prefix true
+        state_file /tmp/state
+        use_aws_timestamp true
+      EOC
 
-    assert_equal('test_id', d.instance.aws_key_id)
-    assert_equal('test_key', d.instance.aws_sec_key)
-    assert_equal('us-east-1', d.instance.region)
-    assert_equal('test', d.instance.tag)
-    assert_equal('group', d.instance.log_group_name)
-    assert_equal('stream', d.instance.log_stream_name)
-    assert_equal(true, d.instance.use_log_stream_name_prefix)
-    assert_equal('/tmp/state', d.instance.state_file)
-    assert_equal(:yajl, d.instance.json_handler)
-    assert_equal(true, d.instance.use_aws_timestamp)
-  end
+      assert_equal('test_id', d.instance.aws_key_id)
+      assert_equal('test_key', d.instance.aws_sec_key)
+      assert_equal('us-east-1', d.instance.region)
+      assert_equal('test', d.instance.tag)
+      assert_equal('group', d.instance.log_group_name)
+      assert_equal('stream', d.instance.log_stream_name)
+      assert_equal(true, d.instance.use_log_stream_name_prefix)
+      assert_equal('/tmp/state', d.instance.state_file)
+      assert_equal(:yajl, d.instance.json_handler)
+      assert_equal(true, d.instance.use_aws_timestamp)
+    end
   end
 
   sub_test_case "real world" do
-  def test_emit
-    create_log_stream
+    def test_emit
+      create_log_stream
 
-    time_ms = (Time.now.to_f * 1000).floor
-    put_log_events([
-      {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
-      {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
-    ])
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+        {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+      ])
 
-    sleep 5
+      sleep 5
 
-    d = create_driver
-    d.run(expect_emits: 2, timeout: 5)
+      d = create_driver
+      d.run(expect_emits: 2, timeout: 5)
 
-    emits = d.events
-    assert_equal(2, emits.size)
-    assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
-    assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
-  end
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+      assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+    end
 
-  def test_emit_with_aws_timestamp
-    create_log_stream
+    def test_emit_with_aws_timestamp
+      create_log_stream
 
-    time_ms = (Time.now.to_f * 1000).floor
-    log_time_ms = time_ms - 10000
-    put_log_events([
-      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
-      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
-    ])
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+      ])
 
-    sleep 5
+      sleep 5
 
-    d = create_driver(csv_format_config_aws_timestamp)
-    d.run(expect_emits: 2, timeout: 5)
+      d = create_driver(csv_format_config_aws_timestamp)
+      d.run(expect_emits: 2, timeout: 5)
 
-    emits = d.events
-    assert_equal(2, emits.size)
-    assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
-    assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
-  end
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
 
-  def test_emit_with_log_timestamp
-    create_log_stream
+    def test_emit_with_log_timestamp
+      create_log_stream
 
-    time_ms = (Time.now.to_f * 1000).floor
-    log_time_ms = time_ms - 10000
-    put_log_events([
-      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
-      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
-    ])
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+      ])
 
-    sleep 5
+      sleep 5
 
-    d = create_driver(csv_format_config)
-    d.run(expect_emits: 2, timeout: 5)
+      d = create_driver(csv_format_config)
+      d.run(expect_emits: 2, timeout: 5)
 
-    emits = d.events
-    assert_equal(2, emits.size)
-    assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
-    assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
-  end
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
 
-  def test_emit_width_format
-    create_log_stream
+    def test_emit_width_format
+      create_log_stream
 
-    time_ms = (Time.now.to_f * 1000).floor
-    put_log_events([
-      {timestamp: time_ms, message: 'logs1'},
-      {timestamp: time_ms, message: 'logs2'},
-    ])
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms, message: 'logs1'},
+        {timestamp: time_ms, message: 'logs2'},
+      ])
 
-    sleep 5
+      sleep 5
 
-    d = create_driver(<<-EOC)
+      d = create_driver(<<-EOC)
       tag test
       @type cloudwatch_logs
       log_group_name #{log_group_name}
@@ -131,38 +131,38 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{endpoint}
     EOC
 
-    d.run(expect_emits: 2, timeout: 5)
+      d.run(expect_emits: 2, timeout: 5)
 
-    emits = d.events
-    assert_equal(2, emits.size)
-    assert_equal('test', emits[0][0])
-    assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
-    assert_equal({'cloudwatch' => 'logs1'}, emits[0][2])
-    assert_equal('test', emits[1][0])
-    assert_in_delta((time_ms / 1000).floor, emits[1][1], 10)
-    assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
-  end
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal('test', emits[0][0])
+      assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
+      assert_equal({'cloudwatch' => 'logs1'}, emits[0][2])
+      assert_equal('test', emits[1][0])
+      assert_in_delta((time_ms / 1000).floor, emits[1][1], 10)
+      assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
+    end
 
-  def test_emit_with_prefix
-    new_log_stream("testprefix")
-    create_log_stream
+    def test_emit_with_prefix
+      new_log_stream("testprefix")
+      create_log_stream
 
-    time_ms = (Time.now.to_f * 1000).floor
-    put_log_events([
-      {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
-      {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
-    ])
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
+        {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
+      ])
 
-    new_log_stream("testprefix")
-    create_log_stream
-    put_log_events([
-      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
-      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
-    ])
+      new_log_stream("testprefix")
+      create_log_stream
+      put_log_events([
+        {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
+        {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
+      ])
 
-    sleep 5
+      sleep 5
 
-    d = create_driver(<<-EOC)
+      d = create_driver(<<-EOC)
       tag test
       @type cloudwatch_logs
       log_group_name #{log_group_name}
@@ -174,69 +174,69 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
       #{endpoint}
     EOC
-    d.run(expect_emits: 4, timeout: 5)
+      d.run(expect_emits: 4, timeout: 5)
 
-    emits = d.events
-    assert_equal(4, emits.size)
-    assert_true(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
-    assert_true(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
-    assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
-    assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
-  end
+      emits = d.events
+      assert_equal(4, emits.size)
+      assert_true(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
+      assert_true(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
+      assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
+      assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
+    end
 
-  def test_emit_with_todays_log_stream
-    new_log_stream("testprefix")
-    create_log_stream
+    def test_emit_with_todays_log_stream
+      new_log_stream("testprefix")
+      create_log_stream
 
-    today = DateTime.now.strftime("%Y/%m/%d")
-    yesterday = (Date.today - 1).strftime("%Y/%m/%d")
-    tomorrow = (Date.today + 1).strftime("%Y/%m/%d")
+      today = DateTime.now.strftime("%Y/%m/%d")
+      yesterday = (Date.today - 1).strftime("%Y/%m/%d")
+      tomorrow = (Date.today + 1).strftime("%Y/%m/%d")
 
 
-    time_ms = (Time.now.to_f * 1000).floor
-    put_log_events([
-      {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
-      {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
-    ])
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms + 1000, message: '{"cloudwatch":"logs1"}'},
+        {timestamp: time_ms + 2000, message: '{"cloudwatch":"logs2"}'},
+      ])
 
-    new_log_stream(today)
-    create_log_stream
-    put_log_events([
-      {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
-      {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
-    ])
+      new_log_stream(today)
+      create_log_stream
+      put_log_events([
+        {timestamp: time_ms + 3000, message: '{"cloudwatch":"logs3"}'},
+        {timestamp: time_ms + 4000, message: '{"cloudwatch":"logs4"}'},
+      ])
 
-    new_log_stream(yesterday)
-    create_log_stream
-    put_log_events([
-      {timestamp: time_ms + 5000, message: '{"cloudwatch":"logs5"}'},
-      {timestamp: time_ms + 6000, message: '{"cloudwatch":"logs6"}'},
-    ])
+      new_log_stream(yesterday)
+      create_log_stream
+      put_log_events([
+        {timestamp: time_ms + 5000, message: '{"cloudwatch":"logs5"}'},
+        {timestamp: time_ms + 6000, message: '{"cloudwatch":"logs6"}'},
+      ])
 
-    new_log_stream(tomorrow)
-    create_log_stream
-    put_log_events([
-      {timestamp: time_ms + 7000, message: '{"cloudwatch":"logs7"}'},
-      {timestamp: time_ms + 8000, message: '{"cloudwatch":"logs8"}'},
-    ])
+      new_log_stream(tomorrow)
+      create_log_stream
+      put_log_events([
+        {timestamp: time_ms + 7000, message: '{"cloudwatch":"logs7"}'},
+        {timestamp: time_ms + 8000, message: '{"cloudwatch":"logs8"}'},
+      ])
 
-    new_log_stream(today)
-    create_log_stream
-    put_log_events([
-      {timestamp: time_ms + 9000, message: '{"cloudwatch":"logs9"}'},
-      {timestamp: time_ms + 10000, message: '{"cloudwatch":"logs10"}'},
-    ])
+      new_log_stream(today)
+      create_log_stream
+      put_log_events([
+        {timestamp: time_ms + 9000, message: '{"cloudwatch":"logs9"}'},
+        {timestamp: time_ms + 10000, message: '{"cloudwatch":"logs10"}'},
+      ])
 
-    new_log_stream(yesterday)
-    create_log_stream
-    put_log_events([
-      {timestamp: time_ms + 11000, message: '{"cloudwatch":"logs11"}'},
-      {timestamp: time_ms + 12000, message: '{"cloudwatch":"logs12"}'},
-    ])
+      new_log_stream(yesterday)
+      create_log_stream
+      put_log_events([
+        {timestamp: time_ms + 11000, message: '{"cloudwatch":"logs11"}'},
+        {timestamp: time_ms + 12000, message: '{"cloudwatch":"logs12"}'},
+      ])
 
-    sleep 15
+      sleep 15
 
-    d = create_driver(<<-EOC)
+      d = create_driver(<<-EOC)
       tag test
       @type cloudwatch_logs
       log_group_name #{log_group_name}
@@ -247,23 +247,23 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
       #{endpoint}
     EOC
-    d.run(expect_emits: 8, timeout: 15)
+      d.run(expect_emits: 8, timeout: 15)
 
-    emits = d.events
-    assert_equal(8, emits.size)
-    assert_false(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
-    assert_false(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
-    assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
-    assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
-    assert_true(emits.include? ['test', ((time_ms + 5000) / 1000).floor, {'cloudwatch' => 'logs5'}])
-    assert_true(emits.include? ['test', ((time_ms + 6000) / 1000).floor, {'cloudwatch' => 'logs6'}])
-    assert_false(emits.include? ['test', ((time_ms + 7000) / 1000).floor, {'cloudwatch' => 'logs7'}])
-    assert_false(emits.include? ['test', ((time_ms + 8000) / 1000).floor, {'cloudwatch' => 'logs8'}])
-    assert_true(emits.include? ['test', ((time_ms + 9000) / 1000).floor, {'cloudwatch' => 'logs9'}])
-    assert_true(emits.include? ['test', ((time_ms + 10000) / 1000).floor, {'cloudwatch' => 'logs10'}])
-    assert_true(emits.include? ['test', ((time_ms + 11000) / 1000).floor, {'cloudwatch' => 'logs11'}])
-    assert_true(emits.include? ['test', ((time_ms + 12000) / 1000).floor, {'cloudwatch' => 'logs12'}])
-  end
+      emits = d.events
+      assert_equal(8, emits.size)
+      assert_false(emits.include? ['test', ((time_ms + 1000) / 1000).floor, {'cloudwatch' => 'logs1'}])
+      assert_false(emits.include? ['test', ((time_ms + 2000) / 1000).floor, {'cloudwatch' => 'logs2'}])
+      assert_true(emits.include? ['test', ((time_ms + 3000) / 1000).floor, {'cloudwatch' => 'logs3'}])
+      assert_true(emits.include? ['test', ((time_ms + 4000) / 1000).floor, {'cloudwatch' => 'logs4'}])
+      assert_true(emits.include? ['test', ((time_ms + 5000) / 1000).floor, {'cloudwatch' => 'logs5'}])
+      assert_true(emits.include? ['test', ((time_ms + 6000) / 1000).floor, {'cloudwatch' => 'logs6'}])
+      assert_false(emits.include? ['test', ((time_ms + 7000) / 1000).floor, {'cloudwatch' => 'logs7'}])
+      assert_false(emits.include? ['test', ((time_ms + 8000) / 1000).floor, {'cloudwatch' => 'logs8'}])
+      assert_true(emits.include? ['test', ((time_ms + 9000) / 1000).floor, {'cloudwatch' => 'logs9'}])
+      assert_true(emits.include? ['test', ((time_ms + 10000) / 1000).floor, {'cloudwatch' => 'logs10'}])
+      assert_true(emits.include? ['test', ((time_ms + 11000) / 1000).floor, {'cloudwatch' => 'logs11'}])
+      assert_true(emits.include? ['test', ((time_ms + 12000) / 1000).floor, {'cloudwatch' => 'logs12'}])
+    end
   end
 
   private
