@@ -2,6 +2,7 @@ require 'test_helper'
 require 'fluent/test/driver/input'
 require 'fluent/test/helpers'
 require 'date'
+require 'fluent/plugin/in_cloudwatch_logs'
 
 class CloudwatchLogsInputTest < Test::Unit::TestCase
   include CloudwatchLogsTestHelper
@@ -9,8 +10,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
   def setup
     Fluent::Test.setup
-    require 'fluent/plugin/in_cloudwatch_logs'
-
   end
 
   def teardown
@@ -264,6 +263,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   end
 
   private
+
   def default_config
     <<-EOC
       tag test
