@@ -154,6 +154,7 @@ Fetch sample log from CloudWatch Logs:
 * `tag`: fluentd tag
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
+* `use_aws_timestamp`: get timestamp from Cloudwatch event for non json logs, otherwise fluentd will parse the log to get the timestamp (default `false`)
 
 ## Test
 

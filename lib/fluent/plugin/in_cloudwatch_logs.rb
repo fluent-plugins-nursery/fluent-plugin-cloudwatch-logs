@@ -134,17 +134,20 @@ module Fluent::Plugin
       end
     end
 
-    def emit(stream, event) 
-      time = (event.timestamp / 1000).floor
-      if @parser
-        @parser.parse(event.message) {|parsed_time,record|           
+    def emit(stream, event)
+        if @parser
+          @parser.parse(event.message) {|time,record|
+            if @use_aws_timestamp
+              time = (event.timestamp / 1000).floor
+            end
+            router.emit(@tag, time, record)
+          }
+        else
+          time = (event.timestamp / 1000).floor
+          record = @json_handler.load(event.message)
           router.emit(@tag, time, record)
-        }
-      else
-        record = @json_handler.load(event.message)
-        router.emit(@tag, time, record)
+        end
       end
-    end
 
     def get_events(log_stream_name)
       request = {
