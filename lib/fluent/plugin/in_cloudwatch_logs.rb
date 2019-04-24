@@ -9,21 +9,21 @@ module Fluent::Plugin
 
     helpers :parser, :thread, :compat_parameters
 
-    config_param :aws_key_id, :string, :default => nil, :secret => true
-    config_param :aws_sec_key, :string, :default => nil, :secret => true
+    config_param :aws_key_id, :string, default: nil, secret: true
+    config_param :aws_sec_key, :string, default: nil, secret: true
     config_param :aws_use_sts, :bool, default: false
     config_param :aws_sts_role_arn, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
-    config_param :region, :string, :default => nil
-    config_param :endpoint, :string, :default => nil
+    config_param :region, :string, default: nil
+    config_param :endpoint, :string, default: nil
     config_param :tag, :string
     config_param :log_group_name, :string
-    config_param :log_stream_name, :string, :default => nil
+    config_param :log_stream_name, :string, default: nil
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
-    config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
+    config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
     config_param :use_todays_log_stream, :bool, default: false
 
     config_section :parse do
@@ -95,7 +95,7 @@ module Fluent::Plugin
     end
 
     def store_next_token(token, log_stream_name = nil)
-      open(state_file_for(log_stream_name), 'w') do |f|
+      File.open(state_file_for(log_stream_name), 'w') do |f|
         f.write token
       end
     end
@@ -152,7 +152,7 @@ module Fluent::Plugin
         log_stream_name: log_stream_name
       }
       log_next_token = next_token(log_stream_name)
-      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty? 
+      request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty?
       response = @logs.get_log_events(request)
       if valid_next_token(log_next_token, response.next_forward_token)
         store_next_token(response.next_forward_token, log_stream_name)
@@ -180,15 +180,15 @@ module Fluent::Plugin
     end
 
     def valid_next_token(prev_token, next_token)
-      return prev_token != next_token.chomp && !next_token.nil?
+      next_token && prev_token != next_token.chomp
     end
 
     def get_todays_date
-      return Date.today.strftime("%Y/%m/%d")
+      Date.today.strftime("%Y/%m/%d")
     end
 
     def get_yesterdays_date
-      return (Date.today - 1).strftime("%Y/%m/%d")
+      (Date.today - 1).strftime("%Y/%m/%d")
     end
   end
 end
