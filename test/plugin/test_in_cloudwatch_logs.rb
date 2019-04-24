@@ -12,10 +12,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     Fluent::Test.setup
   end
 
-  def teardown
-    clear_log_group
-  end
-
   sub_test_case "configure" do
     def test_configure
       d = create_driver(<<-EOC)
@@ -45,6 +41,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   end
 
   sub_test_case "real world" do
+    def teardown
+      clear_log_group
+    end
+
     def test_emit
       create_log_stream
 
@@ -263,6 +263,171 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_true(emits.include? ['test', ((time_ms + 10000) / 1000).floor, {'cloudwatch' => 'logs10'}])
       assert_true(emits.include? ['test', ((time_ms + 11000) / 1000).floor, {'cloudwatch' => 'logs11'}])
       assert_true(emits.include? ['test', ((time_ms + 12000) / 1000).floor, {'cloudwatch' => 'logs12'}])
+    end
+  end
+
+  sub_test_case "stub responses" do
+    setup do
+      @client = Aws::CloudWatchLogs::Client.new(stub_responses: true)
+      mock(Aws::CloudWatchLogs::Client).new(anything) do
+        @client
+      end
+    end
+
+    test "emit" do
+      time_ms = (Time.now.to_f * 1000).floor
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: { cloudwatch: "logs1" }.to_json, ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: { cloudwatch: "logs2" }.to_json, ingestion_time: time_ms)
+      ]
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver
+      d.run(expect_emits: 2, timeout: 5)
+
+      events = d.events
+      assert_equal(2, events.size)
+      assert_equal(["test", (time_ms / 1000), { "cloudwatch" => "logs1" }], events[0])
+      assert_equal(["test", (time_ms / 1000), { "cloudwatch" => "logs2" }], events[1])
+    end
+
+    test "emit with format" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        state_file /tmp/state
+        format /^(?<cloudwatch>[^ ]*)?/
+        #{aws_key_id}
+        #{aws_sec_key}
+        #{region}
+        #{endpoint}
+      CONFIG
+      time_ms = (Time.now.to_f * 1000).floor
+
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "logs1", ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "logs2", ingestion_time: time_ms)
+      ]
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver(config)
+      d.run(expect_emits: 2, timeout: 5)
+
+      events = d.events
+      assert_equal(2, events.size)
+      assert_equal("test", events[0][0])
+      assert_in_delta(time_ms / 1000.0, events[0][1], 1.0)
+      assert_equal({ "cloudwatch" => "logs1" }, events[0][2])
+      assert_equal("test", events[1][0])
+      assert_in_delta(time_ms / 1000.0, events[1][1], 1.0)
+      assert_equal({ "cloudwatch" => "logs2" }, events[1][2])
+    end
+
+    test "emit with prefix" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        log_stream_name testprefix
+        use_log_stream_name_prefix true
+        state_file /tmp/state
+        #{aws_key_id}
+        #{aws_sec_key}
+        #{region}
+        #{endpoint}
+      CONFIG
+      time_ms = (Time.now.to_f * 1000).floor
+      log_stream1 = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      log_stream2 = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream1, log_stream2], next_token: nil })
+      cloudwatch_logs_events1 = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + 1000, message: { cloudwatch: "logs1" }.to_json, ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + 2000, message: { cloudwatch: "logs2" }.to_json, ingestion_time: time_ms)
+      ]
+      cloudwatch_logs_events2 = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + 3000, message: { cloudwatch: "logs3" }.to_json, ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + 4000, message: { cloudwatch: "logs4" }.to_json, ingestion_time: time_ms)
+      ]
+      @client.stub_responses(:get_log_events, [
+        { events: cloudwatch_logs_events1, next_forward_token: nil },
+        { events: cloudwatch_logs_events2, next_forward_token: nil },
+      ])
+
+      d = create_driver(config)
+      d.run(expect_emits: 4, timeout: 5)
+
+      events = d.events
+      assert_equal(4, events.size)
+      assert_equal(["test", (time_ms + 1000) / 1000, { "cloudwatch" => "logs1" }], events[0])
+      assert_equal(["test", (time_ms + 2000) / 1000, { "cloudwatch" => "logs2" }], events[1])
+      assert_equal(["test", (time_ms + 3000) / 1000, { "cloudwatch" => "logs3" }], events[2])
+      assert_equal(["test", (time_ms + 4000) / 1000, { "cloudwatch" => "logs4" }], events[3])
+    end
+
+    test "emit with today's log stream" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        use_todays_log_stream true
+        state_file /tmp/state
+        fetch_interval 0.1
+        #{aws_key_id}
+        #{aws_sec_key}
+        #{region}
+        #{endpoint}
+      CONFIG
+
+      today = Date.today.strftime("%Y/%m/%d")
+      yesterday = (Date.today - 1).strftime("%Y/%m/%d")
+      time_ms = (Time.now.to_f * 1000).floor
+
+      log_stream = ->(name) { Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "#{name}_#{SecureRandom.uuid}") }
+      @client.stub_responses(:describe_log_streams, ->(context) {
+        if context.params[:log_stream_name_prefix].start_with?(today)
+          { log_streams: [log_stream.call(today)], next_token: nil }
+        elsif context.params[:log_stream_name_prefix].start_with?(yesterday)
+          { log_streams: [log_stream.call(yesterday)], next_token: nil }
+        else
+          { log_streams: [], next_token: nil }
+        end
+      })
+      count = 0
+      @client.stub_responses(:get_log_events, ->(context) {
+        n = count * 2 + 1
+        cloudwatch_logs_events = [
+          Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + n * 1000, message: { cloudwatch: "logs#{n}" }.to_json, ingestion_time: time_ms),
+          Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + (n + 1) * 1000, message: { cloudwatch: "logs#{n + 1}" }.to_json, ingestion_time: time_ms)
+        ]
+        count += 1
+        if context.params[:log_stream_name].start_with?(today)
+          { events: cloudwatch_logs_events, next_forward_token: nil }
+        elsif context.params[:log_stream_name].start_with?(yesterday)
+          { events: cloudwatch_logs_events, next_forward_token: nil }
+        else
+          flunk("Failed log_stream_name: #{context.params[:log_stream_name]}")
+        end
+      })
+
+      d = create_driver(config)
+      d.run(expect_emits: 8, timeout: 15)
+
+      events = d.events
+      assert_equal(8, events.size)
+      assert_equal(["test", ((time_ms + 1000) / 1000), { "cloudwatch" => "logs1" }], events[0])
+      assert_equal(["test", ((time_ms + 2000) / 1000), { "cloudwatch" => "logs2" }], events[1])
+      assert_equal(["test", ((time_ms + 3000) / 1000), { "cloudwatch" => "logs3" }], events[2])
+      assert_equal(["test", ((time_ms + 4000) / 1000), { "cloudwatch" => "logs4" }], events[3])
+      assert_equal(["test", ((time_ms + 5000) / 1000), { "cloudwatch" => "logs5" }], events[4])
+      assert_equal(["test", ((time_ms + 6000) / 1000), { "cloudwatch" => "logs6" }], events[5])
+      assert_equal(["test", ((time_ms + 7000) / 1000), { "cloudwatch" => "logs7" }], events[6])
+      assert_equal(["test", ((time_ms + 8000) / 1000), { "cloudwatch" => "logs8" }], events[7])
     end
   end
 
