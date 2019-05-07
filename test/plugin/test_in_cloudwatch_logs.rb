@@ -46,6 +46,8 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     end
 
     def teardown
+      return if ENV["CI"] == "true"
+
       clear_log_group
     end
 
