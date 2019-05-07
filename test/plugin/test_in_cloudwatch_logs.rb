@@ -41,6 +41,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   end
 
   sub_test_case "real world" do
+    def setup
+      omit if ENV["CI"] == "true"
+    end
+
     def teardown
       clear_log_group
     end
