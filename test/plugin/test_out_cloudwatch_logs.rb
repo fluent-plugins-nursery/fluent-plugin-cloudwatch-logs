@@ -3,6 +3,7 @@ require 'test_helper'
 require 'fileutils'
 require 'fluent/test/driver/output'
 require 'fluent/test/helpers'
+require 'fluent/plugin/out_cloudwatch_logs'
 
 class CloudwatchLogsOutputTest < Test::Unit::TestCase
   include CloudwatchLogsTestHelper
@@ -11,7 +12,6 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   def setup
     omit if ENV["CI"] == "true"
     Fluent::Test.setup
-    require 'fluent/plugin/out_cloudwatch_logs'
   end
 
   def teardown
