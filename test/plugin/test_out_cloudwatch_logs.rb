@@ -9,11 +9,13 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
 
   def setup
+    omit if ENV["CI"] == "true"
     Fluent::Test.setup
     require 'fluent/plugin/out_cloudwatch_logs'
   end
 
   def teardown
+    return if ENV["CI"] == "true"
     clear_log_group
   end
 
