@@ -10,16 +10,10 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
 
   def setup
-    omit if ENV["CI"] == "true"
     Fluent::Test.setup
   end
 
-  def teardown
-    return if ENV["CI"] == "true"
-    clear_log_group
-  end
-
-
+  sub_test_case "configure" do
   def test_configure
     d = create_driver(<<-EOC)
       @type cloudwatch_logs
@@ -46,7 +40,17 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal(:yajl, d.instance.json_handler)
     assert_equal(["fluentd","aws","cloudwatch"], d.instance.message_keys)
   end
+  end
 
+  sub_test_case "real world" do
+  def setup
+    omit if ENV["CI"] == "true"
+  end
+
+  def teardown
+    return if ENV["CI"] == "true"
+    clear_log_group
+  end
   def test_write
     new_log_stream
 
@@ -704,6 +708,7 @@ log_stream_name #{log_stream_name}
 
     logs = d.logs
     assert(logs.any?{|log| log.include?("Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144")})
+  end
   end
 
   def test_scrub_record
