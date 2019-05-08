@@ -279,7 +279,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     EOC
   end
 
-  private
   def csv_format_config
     <<-EOC
     tag test
@@ -298,7 +297,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
   EOC
   end
 
-  private
   def csv_format_config_aws_timestamp
     csv_format_config.concat("use_aws_timestamp true")
   end
