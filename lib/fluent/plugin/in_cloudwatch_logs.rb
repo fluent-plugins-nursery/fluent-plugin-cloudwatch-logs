@@ -25,6 +25,7 @@ module Fluent::Plugin
     config_param :http_proxy, :string, default: nil
     config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
     config_param :use_todays_log_stream, :bool, default: false
+    config_param :use_aws_timestamp, :bool, default: false
 
     config_section :parse do
       config_set_default :@type, 'none'
@@ -135,16 +136,19 @@ module Fluent::Plugin
     end
 
     def emit(stream, event)
-      if @parser
-        @parser.parse(event.message) {|time, record|
+        if @parser
+          @parser.parse(event.message) {|time,record|
+            if @use_aws_timestamp
+              time = (event.timestamp / 1000).floor
+            end
+            router.emit(@tag, time, record)
+          }
+        else
+          time = (event.timestamp / 1000).floor
+          record = @json_handler.load(event.message)
           router.emit(@tag, time, record)
-        }
-      else
-        time = (event.timestamp / 1000).floor
-        record = @json_handler.load(event.message)
-        router.emit(@tag, time, record)
+        end
       end
-    end
 
     def get_events(log_stream_name)
       request = {

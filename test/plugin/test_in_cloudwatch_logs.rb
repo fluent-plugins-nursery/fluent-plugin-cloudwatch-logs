@@ -28,6 +28,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       log_stream_name stream
       use_log_stream_name_prefix true
       state_file /tmp/state
+      use_aws_timestamp true
     EOC
 
     assert_equal('test_id', d.instance.aws_key_id)
@@ -39,6 +40,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal(true, d.instance.use_log_stream_name_prefix)
     assert_equal('/tmp/state', d.instance.state_file)
     assert_equal(:yajl, d.instance.json_handler)
+    assert_equal(true, d.instance.use_aws_timestamp)
   end
 
   def test_emit
@@ -59,6 +61,48 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     assert_equal(2, emits.size)
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
     assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+  end
+
+  def test_emit_with_aws_timestamp
+    create_log_stream
+
+    time_ms = (Time.now.to_f * 1000).floor
+    log_time_ms = time_ms - 10000
+    put_log_events([
+      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+    ])
+
+    sleep 5
+
+    d = create_driver(csv_format_config_aws_timestamp)
+    d.run(expect_emits: 2, timeout: 5)
+
+    emits = d.events
+    assert_equal(2, emits.size)
+    assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+    assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+  end
+
+  def test_emit_with_log_timestamp
+    create_log_stream
+
+    time_ms = (Time.now.to_f * 1000).floor
+    log_time_ms = time_ms - 10000
+    put_log_events([
+      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+      {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+    ])
+
+    sleep 5
+
+    d = create_driver(csv_format_config)
+    d.run(expect_emits: 2, timeout: 5)
+
+    emits = d.events
+    assert_equal(2, emits.size)
+    assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+    assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
   end
 
   def test_emit_width_format
@@ -233,6 +277,28 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
       #{endpoint}
     EOC
+  end
+
+  def csv_format_config
+    <<-EOC
+    tag test
+    @type cloudwatch_logs
+    log_group_name #{log_group_name}
+    log_stream_name #{log_stream_name}
+    state_file /tmp/state
+    fetch_interval 1
+    #{aws_key_id}
+    #{aws_sec_key}
+    #{region}
+    #{endpoint}
+    format csv
+    keys time,message
+    time_key time
+  EOC
+  end
+
+  def csv_format_config_aws_timestamp
+    csv_format_config.concat("use_aws_timestamp true")
   end
 
   def create_driver(conf = default_config)
