@@ -7,3 +7,4 @@ Rake::TestTask.new(:test) do |test|
   test.test_files = FileList['test/plugin/*.rb']
 end
 
+task :default => :test
