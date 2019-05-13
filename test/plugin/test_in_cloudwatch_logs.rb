@@ -299,6 +299,48 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", (time_ms / 1000), { "cloudwatch" => "logs2" }], events[1])
     end
 
+    test "emit with aws_timestamp" do
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      log_time_str = Time.at(log_time_ms / 1000.floor).to_s
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "#{log_time_str},Cloudwatch non json logs1"),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "#{log_time_str},Cloudwatch non json logs2")
+      ]
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver(csv_format_config_aws_timestamp)
+      d.run(expect_emits: 2, timeout: 5)
+
+      events = d.events
+      assert_equal(2, events.size)
+      assert_equal(["test", (time_ms / 1000).floor, { "message" => "Cloudwatch non json logs1" }], events[0])
+      assert_equal(["test", (time_ms / 1000).floor, { "message" => "Cloudwatch non json logs2" }], events[1])
+    end
+
+    test "emit with log_timestamp" do
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      log_time_str = Time.at(log_time_ms / 1000.floor).to_s
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "#{log_time_str},Cloudwatch non json logs1"),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "#{log_time_str},Cloudwatch non json logs2")
+      ]
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver(csv_format_config)
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(["test", (log_time_ms / 1000).floor, { "message" => "Cloudwatch non json logs1" }], emits[0])
+      assert_equal(["test", (log_time_ms / 1000).floor, { "message" => "Cloudwatch non json logs2" }], emits[1])
+    end
+
     test "emit with format" do
       config = <<-CONFIG
         tag test
