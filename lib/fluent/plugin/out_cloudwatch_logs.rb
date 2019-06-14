@@ -259,6 +259,9 @@ module Fluent::Plugin
       when Array
         record.each {|v| scrub_record!(v) }
       when String
+        # The AWS API requires UTF-8 encoding
+        # https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogsConcepts.html
+        record.force_encoding('UTF-8')
         record.scrub!
       end
     end
