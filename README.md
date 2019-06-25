@@ -15,7 +15,9 @@
 
 ## Installation
 
-    $ gem install fluent-plugin-cloudwatch-logs
+```sh
+gem install fluent-plugin-cloudwatch-logs
+```
 
 ## Preparation
 
@@ -40,39 +42,62 @@ Create IAM user with a policy like the following:
 }
 ```
 
-Set region and credentials:
+## Authentication
 
+There are several methods to provide authentication credentials.  Be aware that there are various tradeoffs for these methods,
+although most of these tradeoffs are highly dependent on the specific environment.
+
+### Environment 
+
+Set region and credentials via the environment:
+
+```sh
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
+export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
 ```
-$ export AWS_REGION=us-east-1
-$ export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
-$ export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
+
+Note: For this to work persistently the enviornment will need to be set in the startup scripts or docker variables.
+
+### AWS Configuration
+
+The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the 
+fluentd user, run:
+
+```sh
+aws configure
 ```
+
+### Configuration Parameters
+
+The authentication information can also be set 
 
 ## Example
 
 Start fluentd:
 
-```
-$ fluentd -c example/fluentd.conf
+```sh
+fluentd -c example/fluentd.conf
 ```
 
 Send sample log to CloudWatch Logs:
 
-```
-$ echo '{"hello":"world"}' | fluent-cat test.cloudwatch_logs.out
+```sh
+echo '{"hello":"world"}' | fluent-cat test.cloudwatch_logs.out
 ```
 
 Fetch sample log from CloudWatch Logs:
 
-```
+```sh
 # stdout
 2014-07-17 00:28:02 +0900 test.cloudwatch_logs.in: {"hello":"world"}
 ```
 
 ## Configuration
+
 ### out_cloudwatch_logs
 
-```
+```aconf
 <match tag>
   @type cloudwatch_logs
   log_group_name log-group-name
@@ -98,6 +123,8 @@ Fetch sample log from CloudWatch Logs:
 ```
 
 * `auto_create_stream`: to create log group and stream automatically. (defaults to false)
+* `aws_key_id`: AWS Access Key.  See [Authentication](#authentication) for more information.
+* `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
 * `concurrency`: use to set the number of threads pushing data to CloudWatch. (default: 1)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `http_proxy`: use to set an optional HTTP proxy
@@ -117,6 +144,7 @@ Fetch sample log from CloudWatch Logs:
 * `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
 * `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)
 * `put_log_events_retry_wait`: time before retrying PutLogEvents (retry interval increases exponentially like `put_log_events_retry_wait * (2 ^ retry_count)`)
+* `region`: AWS Region.  See [Authentication](#authentication) for more information.
 * `remove_log_group_aws_tags_key`: remove field specified by `log_group_aws_tags_key`
 * `remove_log_group_name_key`: remove field specified by `log_group_name_key`
 * `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
@@ -128,7 +156,7 @@ Fetch sample log from CloudWatch Logs:
 
 ### in_cloudwatch_logs
 
-```
+```aconf
 <source>
   @type cloudwatch_logs
   tag cloudwatch.in
@@ -141,6 +169,8 @@ Fetch sample log from CloudWatch Logs:
 </source>
 ```
 
+* `aws_key_id`: AWS Access Key.  See [Authentication](#authentication) for more information.
+* `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
@@ -150,6 +180,7 @@ Fetch sample log from CloudWatch Logs:
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 * `log_group_name`: name of log group to fetch logs
 * `log_stream_name`: name of log stream to fetch logs
+* `region`: AWS Region.  See [Authentication](#authentication) for more information.
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 * `tag`: fluentd tag
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
@@ -160,7 +191,7 @@ Fetch sample log from CloudWatch Logs:
 
 Set credentials:
 
-```
+```aconf
 $ export AWS_REGION=us-east-1
 $ export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
 $ export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_KEY"
@@ -168,29 +199,30 @@ $ export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_KEY"
 
 Run tests:
 
-```
-$ rake test
+```sh
+rake test
 ```
 
 Or, If you do not want to use IAM roll or ENV(this is just like writing to configuration file) :
 
-```
-$ rake aws_key_id=YOUR_ACCESS_KEY aws_sec_key=YOUR_SECRET_KEY region=us-east-1 test
+```sh
+rake aws_key_id=YOUR_ACCESS_KEY aws_sec_key=YOUR_SECRET_KEY region=us-east-1 test
 ```
 
 If you want to run the test suite against a mock server, set `endpoint` as below:
 
-```
-$ export endpoint='http://localhost:5000/'
-$ rake test
+```sh
+export endpoint='http://localhost:5000/'
+rake test
 ```
 
 
 ## Caution
 
-- If an event message exceeds API limit (256KB), the event will be discarded.
+If an event message exceeds API limit (256KB), the event will be discarded.
 
 ## Cross-Account Operation
+
 In order to have an instance of this plugin running in one AWS account to fetch logs from another account cross-account IAM authentication is required. Whilst this can be accomplished by configuring specific instances of the plugin manually with credentials for the source account in question this is not desirable for a number of reasons.
 
 In this case IAM can be used to allow the fluentd instance in one account ("A") to ingest Cloudwatch logs from another ("B") via the following mechanic:
@@ -204,7 +236,7 @@ In this case IAM can be used to allow the fluentd instance in one account ("A") 
 * Create an IAM role `cloudwatch`
 * Attach a policy to allow the role holder to assume another role (where `ACCOUNT-B` is substituted for the appropriate account number):
 
-```
+```json
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -228,7 +260,7 @@ In this case IAM can be used to allow the fluentd instance in one account ("A") 
 * Create an IAM role `fluentd`
 * Ensure the `fluentd` role as account "A" as a trusted entity:
 
-```
+```json
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -245,7 +277,7 @@ In this case IAM can be used to allow the fluentd instance in one account ("A") 
 
 * Attach a policy:
 
-```
+```json
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -270,7 +302,8 @@ In this case IAM can be used to allow the fluentd instance in one account ("A") 
 ```
 
 ### Configuring the plugin for STS authentication
-```
+
+```aconf
 <source>
   @type cloudwatch_logs
   region us-east-1      # You must supply a region
