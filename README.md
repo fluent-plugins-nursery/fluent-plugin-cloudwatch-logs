@@ -154,6 +154,9 @@ Fetch sample log from CloudWatch Logs:
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name
 
+**NOTE:** `retention_in_days` requests additional IAM permission `logs:PutRetentionPolicy` for log_group.
+Please refer to [the PutRetentionPolicy column in documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/permissions-reference-cwl.html) for details.
+
 ### in_cloudwatch_logs
 
 ```aconf
