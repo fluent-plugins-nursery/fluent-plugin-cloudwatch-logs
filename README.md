@@ -148,7 +148,7 @@ Fetch sample log from CloudWatch Logs:
 * `remove_log_group_aws_tags_key`: remove field specified by `log_group_aws_tags_key`
 * `remove_log_group_name_key`: remove field specified by `log_group_name_key`
 * `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
-* `remove_retention_in_days`: remove field specified by `retention_in_days`
+* `remove_retention_in_days`: remove field specified by `retention_in_days_key`
 * `retention_in_days`: use to set the expiry time for log group when created with `auto_create_stream`. (default to no expiry)
 * `retention_in_days_key`: use specified field of records as retention period
 * `use_tag_as_group`: to use tag as a group name
