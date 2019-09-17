@@ -84,6 +84,8 @@ module Fluent::Plugin
       super
 
       options = {}
+      options[:logger] = log if log
+      options[:log_level] = ({0 => :trace, 1 => :debug, 2 => :info, 3 => :warn, 4 => :error, 5 => :fatal}[log.level] || :info) if log
       options[:region] = @region if @region
       options[:endpoint] = @endpoint if @endpoint
       options[:instance_profile_credentials_retries] = @aws_instance_profile_credentials_retries if @aws_instance_profile_credentials_retries
@@ -101,6 +103,8 @@ module Fluent::Plugin
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
       @store_next_sequence_token_mutex = Mutex.new
+
+      log.debug "Aws::CloudWatchLogs::Client initialized: log.level #{log.level} => #{options[:log_level]}"
 
       @json_handler = case @json_handler
                       when :yajl
