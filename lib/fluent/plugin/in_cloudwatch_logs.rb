@@ -144,14 +144,14 @@ module Fluent::Plugin
           router.emit(@tag, time, record)
         }
       else
+        time = (event.timestamp / 1000).floor
         begin
           record = @json_handler.load(event.message)
-        rescue JSON::ParserError, Yajl::ParseError # Catch parser errors
-          log.debug "Non-JSON message encountered"
-          record = { message: event.message }
+          router.emit(@tag, time, record)
+        rescue JSON::ParserError, Yajl::ParseError => error # Catch parser errors
+          log.error "Invalid JSON encountered while parsing event.message"
+          router.emit_error_event(@tag, time, { message: event.message }, error)
         end
-        time = (event.timestamp / 1000).floor
-        router.emit(@tag, time, record)
       end
     end
 
