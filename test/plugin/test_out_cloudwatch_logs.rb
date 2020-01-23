@@ -652,12 +652,15 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
 
     def test_retrying_on_throttling_exception
-      resp = mock()
-      resp.expects(:rejected_log_events_info)
-      resp.expects(:next_sequence_token)
+      resp = Object.new
+      mock(resp).rejected_log_events_info {}
+      mock(resp).next_sequence_token {}
       client = Aws::CloudWatchLogs::Client.new
-      client.stubs(:put_log_events).
-        raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")).then.returns(resp)
+      @called = false
+      stub(client).put_log_events(anything) {
+        raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      }.once.ordered
+      stub(client).put_log_events(anything) { resp }.once.ordered
 
       d = create_driver
       time = event_time
@@ -674,8 +677,9 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     def test_retrying_on_throttling_exception_and_throw_away
       client = Aws::CloudWatchLogs::Client.new
-      client.stubs(:put_log_events).
-        raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      mock(client).put_log_events(anything).times(any_times) {
+        raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      }
       time = Fluent::Engine.now
       d = create_driver(<<-EOC)
         #{default_config}
