@@ -544,7 +544,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         end
       end
 
-      assert_match(/failed to set retention policy for Log group/, d.logs[0])
+      assert(d.logs.any?{|log| log.include?("failed to set retention policy for Log group")})
     end
 
     def test_log_group_aws_tags_key
@@ -712,7 +712,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       end
 
       logs = d.logs
-      assert(logs.any?{|log| log.include?("Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144")})
+      assert(logs.any?{|log| log =~ /Log event in .* discarded because it is too large: 262184 bytes exceeds limit of 262144/})
     end
   end
 
