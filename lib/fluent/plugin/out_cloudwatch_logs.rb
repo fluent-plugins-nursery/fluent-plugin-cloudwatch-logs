@@ -5,7 +5,6 @@ require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsOutput < Output
-    include Fluent::MessagePackFactory::Mixin
     Fluent::Plugin.register_output('cloudwatch_logs', self)
 
     helpers :compat_parameters, :inject
