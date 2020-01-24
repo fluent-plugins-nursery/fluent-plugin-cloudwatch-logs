@@ -1,4 +1,5 @@
 require 'fluent/plugin/output'
+require 'fluent/msgpack_factory'
 require 'thread'
 require 'yajl'
 
@@ -116,7 +117,7 @@ module Fluent::Plugin
 
     def format(tag, time, record)
       record = inject_values_to_record(tag, time, record)
-      msgpack_packer.pack([tag, time, record]).to_s
+      Fluent::MessagePackFactory.msgpack_packer.pack([tag, time, record]).to_s
     end
 
     def formatted_to_msgpack_binary?
