@@ -170,6 +170,11 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   state_file /var/lib/fluent/group_stream.in.state
   #endpoint http://localhost:5000/
   #json_handler json
+  # Users can use `format` or `<parse>` directive to parse non-JSON CloudwatchLogs' log
+  # format none # or csv, tsv etc.
+  #<parse>
+  # @type none # or csv, tsv etc.
+  #</parse>
 </source>
 ```
 
@@ -190,6 +195,8 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
 * `use_aws_timestamp`: get timestamp from Cloudwatch event for non json logs, otherwise fluentd will parse the log to get the timestamp (default `false`)
+* `format`: specify CloudWatchLogs' log format. (default `nil`)
+* `<parse>`: specify parser plugin configuration. see also: https://docs.fluentd.org/v/1.0/parser#how-to-use
 
 ## Test
 

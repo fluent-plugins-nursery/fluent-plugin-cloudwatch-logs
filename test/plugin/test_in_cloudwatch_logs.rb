@@ -113,6 +113,43 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
     end
 
+    test "emit with <parse> csv" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                           'state_file' => '/tmp/state',
+                          }
+      cloudwatch_config = cloudwatch_config.merge!('aws_key_id' => "#{ENV['aws_key_id']}" ) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!('aws_sec_key' => "#{ENV['aws_sec_key']}" ) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!('region' => "#{ENV['region']}" ) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!('endpoint' => "#{ENV['endpoint']}" ) if ENV['endpoint']
+
+      csv_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'csv',
+                                                                        'keys' => 'time,message',
+                                                                        'time_key' => 'time'})
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+      ])
+
+      sleep 5
+
+      d = create_driver(csv_format_config)
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
+
     def test_emit_width_format
       create_log_stream
 
