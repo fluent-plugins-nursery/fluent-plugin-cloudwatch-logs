@@ -714,6 +714,36 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       logs = d.logs
       assert(logs.any?{|log| log =~ /Log event in .* discarded because it is too large: 262184 bytes exceeds limit of 262144/})
     end
+
+    def test_do_not_emit_empty_record
+      new_log_stream
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        message_keys cloudwatch,message
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+      EOC
+
+      time = event_time
+      d.run(default_tag: fluentd_tag) do
+        d.feed(time, {'cloudwatch' => 'logs1', 'message' => ''})
+        d.feed(time + 1, {'cloudwatch' => '', 'message' => 'message2'})
+        d.feed(time + 2, {'cloudwatch' => '', 'message' => ''})
+      end
+
+      sleep 10
+
+      events = get_log_events
+      assert_equal(2, events.size)
+      assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+      assert_equal('logs1', events[0].message)
+      assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+      assert_equal('message2', events[1].message)
+
+      logs = d.logs
+      assert(logs.any?{|log| log =~ /Within specified message_key\(s\): \(cloudwatch,message\) do not have non-empty record. Skip./})
+    end
   end
 
   def test_scrub_record

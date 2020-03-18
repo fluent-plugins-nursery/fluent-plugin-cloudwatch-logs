@@ -219,13 +219,20 @@ module Fluent::Plugin
 
         events = []
         rs.each do |t, time, record|
+          record = drop_empty_record(record)
+
           time_ms = (time.to_f * 1000).floor
 
           scrub_record!(record)
           unless @message_keys.empty?
-            message = @message_keys.map {|k| record[k].to_s }.join(' ')
+            message = @message_keys.map{|k| record[k].to_s }.reject{|e| e.empty? }.join(' ')
           else
             message = @json_handler.dump(record)
+          end
+
+          if message.empty?
+            log.warn "Within specified message_key(s): (#{@message_keys.join(',')}) do not have non-empty record. Skip."
+            next
           end
 
           if @max_message_length
@@ -256,6 +263,17 @@ module Fluent::Plugin
     end
 
     private
+
+    def drop_empty_record(record)
+      new_record = record.dup
+      new_record.each_key do |k|
+        if new_record[k] == ""
+          new_record.delete(k)
+        end
+      end
+      new_record
+    end
+
     def scrub_record!(record)
       case record
       when Hash
