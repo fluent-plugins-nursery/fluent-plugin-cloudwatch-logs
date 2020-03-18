@@ -120,10 +120,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
                            'log_stream_name' => "#{log_stream_name}",
                            'state_file' => '/tmp/state',
                           }
-      cloudwatch_config = cloudwatch_config.merge!('aws_key_id' => "#{ENV['aws_key_id']}" ) if ENV['aws_key_id']
-      cloudwatch_config = cloudwatch_config.merge!('aws_sec_key' => "#{ENV['aws_sec_key']}" ) if ENV['aws_sec_key']
-      cloudwatch_config = cloudwatch_config.merge!('region' => "#{ENV['region']}" ) if ENV['region']
-      cloudwatch_config = cloudwatch_config.merge!('endpoint' => "#{ENV['endpoint']}" ) if ENV['endpoint']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
 
       csv_format_config = config_element('ROOT', '', cloudwatch_config, [
                                            config_element('parse', '', {'@type' => 'csv',
@@ -193,10 +193,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
                            'log_stream_name' => "#{log_stream_name}",
                            'state_file' => '/tmp/state',
                           }
-      cloudwatch_config = cloudwatch_config.merge!('aws_key_id' => "#{ENV['aws_key_id']}" ) if ENV['aws_key_id']
-      cloudwatch_config = cloudwatch_config.merge!('aws_sec_key' => "#{ENV['aws_sec_key']}" ) if ENV['aws_sec_key']
-      cloudwatch_config = cloudwatch_config.merge!('region' => "#{ENV['region']}" ) if ENV['region']
-      cloudwatch_config = cloudwatch_config.merge!('endpoint' => "#{ENV['endpoint']}" ) if ENV['endpoint']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
 
       regex_format_config = config_element('ROOT', '', cloudwatch_config, [
                                            config_element('parse', '', {'@type' => 'regexp',
