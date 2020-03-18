@@ -186,6 +186,47 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
     end
 
+    test "emit with <parse> regexp" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                           'state_file' => '/tmp/state',
+                          }
+      cloudwatch_config = cloudwatch_config.merge!('aws_key_id' => "#{ENV['aws_key_id']}" ) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!('aws_sec_key' => "#{ENV['aws_sec_key']}" ) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!('region' => "#{ENV['region']}" ) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!('endpoint' => "#{ENV['endpoint']}" ) if ENV['endpoint']
+
+      regex_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'regexp',
+                                                                        'expression' => "/^(?<cloudwatch>[^ ]*)?/",
+                                                                       })
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms, message: 'logs1'},
+        {timestamp: time_ms, message: 'logs2'},
+      ])
+
+      sleep 5
+
+      d = create_driver(regex_format_config)
+
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal('test', emits[0][0])
+      assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
+      assert_equal({'cloudwatch' => 'logs1'}, emits[0][2])
+      assert_equal('test', emits[1][0])
+      assert_in_delta((time_ms / 1000).floor, emits[1][1], 10)
+      assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
+    end
+
     def test_emit_with_prefix
       new_log_stream("testprefix")
       create_log_stream
