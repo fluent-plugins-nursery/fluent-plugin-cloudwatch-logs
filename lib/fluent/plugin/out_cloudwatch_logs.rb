@@ -85,7 +85,7 @@ module Fluent::Plugin
 
       options = {}
       options[:logger] = log if log
-      options[:log_level] = ({0 => :trace, 1 => :debug, 2 => :info, 3 => :warn, 4 => :error, 5 => :fatal}[log.level] || :info) if log
+      options[:log_level] = :debug if log
       options[:region] = @region if @region
       options[:endpoint] = @endpoint if @endpoint
       options[:instance_profile_credentials_retries] = @aws_instance_profile_credentials_retries if @aws_instance_profile_credentials_retries
