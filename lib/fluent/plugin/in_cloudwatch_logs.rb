@@ -34,6 +34,7 @@ module Fluent::Plugin
     def initialize
       super
 
+      @parser = nil
       require 'aws-sdk-cloudwatchlogs'
     end
 
