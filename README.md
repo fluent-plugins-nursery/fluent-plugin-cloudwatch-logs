@@ -171,9 +171,9 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   #endpoint http://localhost:5000/
   #json_handler json
   # Users can use `format` or `<parse>` directive to parse non-JSON CloudwatchLogs' log
-  # format none # or csv, tsv etc.
+  # format none # or csv, tsv, regexp etc.
   #<parse>
-  # @type none # or csv, tsv etc.
+  # @type none # or csv, tsv, regexp etc.
   #</parse>
 </source>
 ```
