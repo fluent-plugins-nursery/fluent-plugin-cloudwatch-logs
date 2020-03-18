@@ -34,6 +34,7 @@ module Fluent::Plugin
     def initialize
       super
 
+      @parser = nil
       require 'aws-sdk-cloudwatchlogs'
     end
 
@@ -82,6 +83,8 @@ module Fluent::Plugin
     def configure_parser(conf)
       if conf['format']
         @parser = parser_create
+      elsif parser_config = conf.elements('parse').first
+        @parser = parser_create(conf: parser_config)
       end
     end
 

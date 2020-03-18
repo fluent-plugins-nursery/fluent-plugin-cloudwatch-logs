@@ -113,6 +113,43 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
     end
 
+    test "emit with <parse> csv" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                           'state_file' => '/tmp/state',
+                          }
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+      csv_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'csv',
+                                                                        'keys' => 'time,message',
+                                                                        'time_key' => 'time'})
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+      ])
+
+      sleep 5
+
+      d = create_driver(csv_format_config)
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
+
     def test_emit_width_format
       create_log_stream
 
@@ -136,6 +173,47 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
       #{endpoint}
     EOC
+
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal('test', emits[0][0])
+      assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
+      assert_equal({'cloudwatch' => 'logs1'}, emits[0][2])
+      assert_equal('test', emits[1][0])
+      assert_in_delta((time_ms / 1000).floor, emits[1][1], 10)
+      assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
+    end
+
+    test "emit with <parse> regexp" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                           'state_file' => '/tmp/state',
+                          }
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+      regex_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'regexp',
+                                                                        'expression' => "/^(?<cloudwatch>[^ ]*)?/",
+                                                                       })
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms, message: 'logs1'},
+        {timestamp: time_ms, message: 'logs2'},
+      ])
+
+      sleep 5
+
+      d = create_driver(regex_format_config)
 
       d.run(expect_emits: 2, timeout: 5)
 

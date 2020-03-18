@@ -48,7 +48,7 @@ Create IAM user with a policy like the following:
 There are several methods to provide authentication credentials.  Be aware that there are various tradeoffs for these methods,
 although most of these tradeoffs are highly dependent on the specific environment.
 
-### Environment 
+### Environment
 
 Set region and credentials via the environment:
 
@@ -62,7 +62,7 @@ Note: For this to work persistently the enviornment will need to be set in the s
 
 ### AWS Configuration
 
-The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the 
+The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the
 fluentd user, run:
 
 ```sh
@@ -71,7 +71,7 @@ aws configure
 
 ### Configuration Parameters
 
-The authentication information can also be set 
+The authentication information can also be set
 
 ## Example
 
@@ -170,6 +170,11 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   state_file /var/lib/fluent/group_stream.in.state
   #endpoint http://localhost:5000/
   #json_handler json
+  # Users can use `format` or `<parse>` directive to parse non-JSON CloudwatchLogs' log
+  # format none # or csv, tsv, regexp etc.
+  #<parse>
+  # @type none # or csv, tsv, regexp etc.
+  #</parse>
 </source>
 ```
 
@@ -190,6 +195,8 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
 * `use_aws_timestamp`: get timestamp from Cloudwatch event for non json logs, otherwise fluentd will parse the log to get the timestamp (default `false`)
+* `format`: specify CloudWatchLogs' log format. (default `nil`)
+* `<parse>`: specify parser plugin configuration. see also: https://docs.fluentd.org/v/1.0/parser#how-to-use
 
 ## Test
 
