@@ -48,7 +48,7 @@ Create IAM user with a policy like the following:
 There are several methods to provide authentication credentials.  Be aware that there are various tradeoffs for these methods,
 although most of these tradeoffs are highly dependent on the specific environment.
 
-### Environment 
+### Environment
 
 Set region and credentials via the environment:
 
@@ -62,7 +62,7 @@ Note: For this to work persistently the enviornment will need to be set in the s
 
 ### AWS Configuration
 
-The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the 
+The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the
 fluentd user, run:
 
 ```sh
@@ -71,7 +71,7 @@ aws configure
 
 ### Configuration Parameters
 
-The authentication information can also be set 
+The authentication information can also be set
 
 ## Example
 
