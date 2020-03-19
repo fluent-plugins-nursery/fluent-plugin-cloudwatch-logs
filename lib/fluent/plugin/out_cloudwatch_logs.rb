@@ -455,12 +455,23 @@ module Fluent::Plugin
     def log_group_exists?(group_name)
       if @sequence_tokens[group_name]
         true
-      elsif @logs.describe_log_groups.any? {|page| page.log_groups.any? {|i| i.log_group_name == group_name } }
+      elsif check_log_group_existence(group_name)
         @sequence_tokens[group_name] = {}
         true
       else
         false
       end
+    end
+
+    def check_log_group_existence(group_name)
+      response = @logs.describe_log_groups(log_group_name_prefix: group_name)
+      response.each {|page|
+        if page.log_groups.find {|i| i.log_group_name == group_name }
+          return true
+        end
+      }
+
+      false
     end
 
     def log_stream_exists?(group_name, stream_name)
