@@ -1,4 +1,5 @@
 require 'date'
+require 'time'
 require 'fluent/plugin/input'
 require 'fluent/plugin/parser'
 require 'yajl'
@@ -26,6 +27,9 @@ module Fluent::Plugin
     config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
     config_param :use_todays_log_stream, :bool, default: false
     config_param :use_aws_timestamp, :bool, default: false
+    config_param :start_time, :string, default: nil
+    config_param :end_time, :string, default: nil
+    config_param :time_range_format, :string, default: "%Y-%m-%d %H:%M:%S"
 
     config_section :parse do
       config_set_default :@type, 'none'
@@ -42,6 +46,12 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :parser)
       super
       configure_parser(conf)
+
+      @start_time = (Time.strptime(@start_time, @time_range_format).to_f * 1000).floor if @start_time
+      @end_time = (Time.strptime(@end_time, @time_range_format).to_f * 1000).floor if @end_time
+      if @start_time && @end_time && (@end_time < @start_time)
+        raise Fluent::ConfigError, "end_time(#{@end_time}) should be greater than start_time(#{@start_time})."
+      end
     end
 
     def start
@@ -163,6 +173,8 @@ module Fluent::Plugin
         log_group_name: @log_group_name,
         log_stream_name: log_stream_name
       }
+      request.merge!(start_time: @start_time) if @start_time
+      request.merge!(end_time: @end_time) if @end_time
       log_next_token = next_token(log_stream_name)
       request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty?
       response = @logs.get_log_events(request)
