@@ -25,6 +25,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
         use_log_stream_name_prefix true
         state_file /tmp/state
         use_aws_timestamp true
+        start_time "2019-06-18 00:00:00Z"
+        end_time "2020-01-18 00:00:00Z"
+        time_range_format "%Y-%m-%d %H:%M:%S%z"
       EOC
 
       assert_equal('test_id', d.instance.aws_key_id)
@@ -37,6 +40,29 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal('/tmp/state', d.instance.state_file)
       assert_equal(:yajl, d.instance.json_handler)
       assert_equal(true, d.instance.use_aws_timestamp)
+      assert_equal(1560816000000, d.instance.start_time)
+      assert_equal(1579305600000, d.instance.end_time)
+      assert_equal("%Y-%m-%d %H:%M:%S%z", d.instance.time_range_format)
+    end
+
+    test 'invalid time range' do
+      assert_raise(Fluent::ConfigError) do
+        create_driver(<<-EOC)
+          @type cloudwatch_logs
+          aws_key_id test_id
+          aws_sec_key test_key
+          region us-east-1
+          tag test
+          log_group_name group
+          log_stream_name stream
+          use_log_stream_name_prefix true
+          state_file /tmp/state
+          use_aws_timestamp true
+          start_time "2019-06-18 00:00:00Z"
+          end_time "2019-01-18 00:00:00Z"
+          time_range_format "%Y-%m-%d %H:%M:%S%z"
+        EOC
+      end
     end
   end
 
@@ -90,6 +116,33 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(2, emits.size)
       assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
       assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
+
+    def test_emit_with_aws_timestamp_and_time_range
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      before_6h_time_ms = ((Time.now.to_f - 60*60*6) * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: before_6h_time_ms, message: Time.at((before_6h_time_ms - 10000)/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: before_6h_time_ms, message: Time.at((before_6h_time_ms - 10000)/1000.floor).to_s + ",Cloudwatch non json logs2"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs3"},
+      ])
+
+      sleep 5
+
+      d = create_driver(csv_format_config_aws_timestamp + %[
+        start_time #{Time.at(Time.now.to_f - 60*60*8).to_s}
+        end_time #{Time.at(Time.now.to_f - 60*60*4).to_s}
+        time_range_format "%Y-%m-%d %H:%M:%S %z"
+      ])
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (before_6h_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (before_6h_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
     end
 
     def test_emit_with_log_timestamp
