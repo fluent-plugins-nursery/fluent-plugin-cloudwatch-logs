@@ -223,6 +223,10 @@ module Fluent::Plugin
             record.delete(@log_group_aws_tags_key)
           end
 
+          if @retention_in_days_key && @remove_retention_in_days_key
+            record.delete(@retention_in_days_key)
+          end
+
           record = drop_empty_record(record)
 
           time_ms = (time.to_f * 1000).floor
