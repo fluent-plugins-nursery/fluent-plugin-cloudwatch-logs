@@ -41,7 +41,7 @@ module Fluent::Plugin
     config_param :remove_log_group_aws_tags_key, :bool, default: false
     config_param :retention_in_days, :integer, default: nil
     config_param :retention_in_days_key, :string, default: nil
-    config_param :remove_retention_in_days, :bool, default: false
+    config_param :remove_retention_in_days_key, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
     config_param :log_rejected_request, :bool, :default => false
 
