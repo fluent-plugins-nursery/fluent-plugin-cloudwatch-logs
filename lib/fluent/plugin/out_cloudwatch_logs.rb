@@ -219,6 +219,10 @@ module Fluent::Plugin
 
         events = []
         rs.each do |t, time, record|
+          if @log_group_aws_tags_key && @remove_log_group_aws_tags_key
+            record.delete(@log_group_aws_tags_key)
+          end
+
           record = drop_empty_record(record)
 
           time_ms = (time.to_f * 1000).floor
