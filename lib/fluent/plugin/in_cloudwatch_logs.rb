@@ -190,7 +190,7 @@ module Fluent::Plugin
         log_group_name: @log_group_name
       }
       request[:next_token] = next_token if next_token
-      request[:log_stream_name_prefix] = log_stream_name_prefix
+      request[:log_stream_name_prefix] = log_stream_name_prefix if log_stream_name_prefix
       response = @logs.describe_log_streams(request)
       if log_streams
         log_streams.concat(response.log_streams)
