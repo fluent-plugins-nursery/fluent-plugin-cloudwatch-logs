@@ -41,7 +41,7 @@ module Fluent::Plugin
     config_param :remove_log_group_aws_tags_key, :bool, default: false
     config_param :retention_in_days, :integer, default: nil
     config_param :retention_in_days_key, :string, default: nil
-    config_param :remove_retention_in_days, :bool, default: false
+    config_param :remove_retention_in_days_key, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
     config_param :log_rejected_request, :bool, :default => false
 
@@ -219,6 +219,14 @@ module Fluent::Plugin
 
         events = []
         rs.each do |t, time, record|
+          if @log_group_aws_tags_key && @remove_log_group_aws_tags_key
+            record.delete(@log_group_aws_tags_key)
+          end
+
+          if @retention_in_days_key && @remove_retention_in_days_key
+            record.delete(@retention_in_days_key)
+          end
+
           record = drop_empty_record(record)
 
           time_ms = (time.to_f * 1000).floor

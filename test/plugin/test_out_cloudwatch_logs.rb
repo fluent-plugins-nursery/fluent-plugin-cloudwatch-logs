@@ -547,6 +547,37 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert(d.logs.any?{|log| log.include?("failed to set retention policy for Log group")})
     end
 
+    def test_remove_retention_in_days_key
+      new_log_stream
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        retention_in_days_key retention_in_days
+        remove_retention_in_days_key true
+      EOC
+
+      records = [
+        {'cloudwatch' => 'logs1', 'message' => 'message1', 'retention_in_days' => '7'},
+        {'cloudwatch' => 'logs2', 'message' => 'message2', 'retention_in_days' => '7'},
+      ]
+
+      time = Time.now
+      d.run(default_tag: fluentd_tag) do
+        records.each_with_index do |record, i|
+          d.feed(time.to_i + i, record)
+        end
+      end
+
+      sleep 10
+
+      events = get_log_events
+      assert_equal(2, events.size)
+      assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
+      assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
+    end
+
     def test_log_group_aws_tags_key
       clear_log_group
 
@@ -574,6 +605,37 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       awstags = get_log_group_tags
       assert_equal("value1", awstags.fetch("tag1"))
       assert_equal("value2", awstags.fetch("tag2"))
+    end
+
+    def test_remove_log_group_aws_tags_key
+      new_log_stream
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        log_group_aws_tags_key log_group_tags
+        remove_log_group_aws_tags_key true
+      EOC
+
+      records = [
+        {'cloudwatch' => 'logs1', 'message' => 'message1', 'log_group_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+        {'cloudwatch' => 'logs2', 'message' => 'message2', 'log_group_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+      ]
+
+      time = Time.now
+      d.run(default_tag: fluentd_tag) do
+        records.each_with_index do |record, i|
+          d.feed(time.to_i + i, record)
+        end
+      end
+
+      sleep 10
+
+      events = get_log_events
+      assert_equal(2, events.size)
+      assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
+      assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
     end
 
     def test_log_group_aws_tags_key_same_group_diff_tags
