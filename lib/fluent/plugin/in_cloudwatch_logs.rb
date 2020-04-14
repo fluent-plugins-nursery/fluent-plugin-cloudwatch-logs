@@ -30,6 +30,7 @@ module Fluent::Plugin
     config_param :start_time, :string, default: nil
     config_param :end_time, :string, default: nil
     config_param :time_range_format, :string, default: "%Y-%m-%d %H:%M:%S"
+    config_param :throttling_retry_seconds, :time, default: nil
 
     config_section :parse do
       config_set_default :@type, 'none'
@@ -183,6 +184,15 @@ module Fluent::Plugin
       end
 
       response.events
+    rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
+      if throttling_retry_seconds
+        log.warn "ThrottlingException in get_log_events (#{log_stream_name}). Waiting #{throttling_retry_seconds} seconds to retry."
+        sleep throttling_retry_seconds
+
+        get_events(log_stream_name)
+      else
+        raise err
+      end
     end
 
     def describe_log_streams(log_stream_name_prefix, log_streams = nil, next_token = nil)
