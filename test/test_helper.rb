@@ -42,10 +42,7 @@ module CloudwatchLogsTestHelper
   end
 
   def log_stream_name(log_stream_name_prefix = nil)
-    if !@log_stream_name
-      new_log_stream(log_stream_name_prefix)
-    end
-    @log_stream_name
+    @log_stream_name ||= new_log_stream(log_stream_name_prefix)
   end
 
   def new_log_stream(log_stream_name_prefix = nil)
