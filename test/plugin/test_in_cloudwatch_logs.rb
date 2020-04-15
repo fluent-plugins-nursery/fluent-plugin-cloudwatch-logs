@@ -622,7 +622,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
         throttling_retry_seconds 1
       CONFIG
 
-
       # it will raises the error 2 times
       counter = 0
       times = 2
