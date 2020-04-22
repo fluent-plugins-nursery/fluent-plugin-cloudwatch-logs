@@ -28,6 +28,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
         start_time "2019-06-18 00:00:00Z"
         end_time "2020-01-18 00:00:00Z"
         time_range_format "%Y-%m-%d %H:%M:%S%z"
+        throttling_retry_seconds 30
       EOC
 
       assert_equal('test_id', d.instance.aws_key_id)
@@ -43,6 +44,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(1560816000000, d.instance.start_time)
       assert_equal(1579305600000, d.instance.end_time)
       assert_equal("%Y-%m-%d %H:%M:%S%z", d.instance.time_range_format)
+      assert_equal(30, d.instance.throttling_retry_seconds)
     end
 
     test 'invalid time range' do
@@ -607,6 +609,36 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", ((time_ms + 6000) / 1000), { "cloudwatch" => "logs6" }], events[5])
       assert_equal(["test", ((time_ms + 7000) / 1000), { "cloudwatch" => "logs7" }], events[6])
       assert_equal(["test", ((time_ms + 8000) / 1000), { "cloudwatch" => "logs8" }], events[7])
+    end
+
+    test "retry on Aws::CloudWatchLogs::Errors::ThrottlingException" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        state_file /tmp/state
+        fetch_interval 0.1
+        throttling_retry_seconds 0.2
+      CONFIG
+
+      # it will raises the error 2 times
+      counter = 0
+      times = 2
+      stub(@client).get_log_events(anything) {
+        counter += 1
+        counter <= times ? raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")) : OpenStruct.new(events: [], next_forward_token: nil)
+      }
+
+      d = create_driver(config)
+
+      # so, it is expected to valid_next_token once
+      mock(d.instance).valid_next_token(nil, nil).once
+
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+
+      d.run
+      assert_equal(2, d.logs.select {|l| l =~ /Waiting 0.2 seconds to retry/ }.size)
     end
   end
 

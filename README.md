@@ -193,6 +193,7 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `log_group_name`: name of log group to fetch logs
 * `log_stream_name`: name of log stream to fetch logs
 * `region`: AWS Region.  See [Authentication](#authentication) for more information.
+* `throttling_retry_seconds`: time period in seconds to retry a request when aws CloudWatch rate limit exceeds (default: nil)
 * `state_file`: file to store current state (e.g. next\_forward\_token)
 * `tag`: fluentd tag
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
