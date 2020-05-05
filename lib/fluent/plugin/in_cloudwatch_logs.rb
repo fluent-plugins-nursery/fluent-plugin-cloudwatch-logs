@@ -215,7 +215,7 @@ module Fluent::Plugin
         log.warn "ThrottlingException #{method_name}. Waiting #{throttling_retry_seconds} seconds to retry."
         sleep throttling_retry_seconds
 
-        yield
+        throttling_hander(method_name) { yield }
       else
         raise err
       end
