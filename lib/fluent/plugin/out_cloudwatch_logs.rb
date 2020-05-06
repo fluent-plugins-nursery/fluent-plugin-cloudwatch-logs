@@ -400,7 +400,13 @@ module Fluent::Plugin
             raise err
           end
         rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
-          if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
+          if @put_log_events_retry_limit == 0
+            log.warn "failed to PutLogEvents and discard logs because put_log_events_retry_limit is 0", {
+              "error_class" => err.class.to_s,
+              "error" => err.message,
+            }
+            return
+          elsif !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
             log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
               "error_class" => err.class.to_s,
               "error" => err.message,
