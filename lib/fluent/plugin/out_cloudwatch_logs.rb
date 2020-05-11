@@ -56,7 +56,7 @@ module Fluent::Plugin
     def initialize
       super
 
-      require 'aws-sdk-cloudwatchlogs'
+      require 'aws-sdk'
     end
 
     def configure(conf)

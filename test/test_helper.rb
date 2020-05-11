@@ -4,7 +4,7 @@ require 'test/unit/rr'
 require 'fluent/test'
 require 'securerandom'
 
-require 'aws-sdk-cloudwatchlogs'
+require 'aws-sdk'
 
 module CloudwatchLogsTestHelper
   private
