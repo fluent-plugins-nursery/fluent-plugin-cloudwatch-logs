@@ -170,7 +170,7 @@ module Fluent::Plugin
     end
 
     def get_events(log_stream_name)
-      throttling_hander('get_log_events') do
+      throttling_handler('get_log_events') do
         request = {
           log_group_name: @log_group_name,
           log_stream_name: log_stream_name
@@ -189,7 +189,7 @@ module Fluent::Plugin
     end
 
     def describe_log_streams(log_stream_name_prefix, log_streams = nil, next_token = nil)
-      throttling_hander('describe_log_streams') do
+      throttling_handler('describe_log_streams') do
         request = {
           log_group_name: @log_group_name
         }
@@ -208,14 +208,14 @@ module Fluent::Plugin
       end
     end
 
-    def throttling_hander(method_name)
+    def throttling_handler(method_name)
       yield
     rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
       if throttling_retry_seconds
         log.warn "ThrottlingException #{method_name}. Waiting #{throttling_retry_seconds} seconds to retry."
         sleep throttling_retry_seconds
 
-        throttling_hander(method_name) { yield }
+        throttling_handler(method_name) { yield }
       else
         raise err
       end
