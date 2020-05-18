@@ -611,7 +611,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", ((time_ms + 8000) / 1000), { "cloudwatch" => "logs8" }], events[7])
     end
 
-    test "retry on Aws::CloudWatchLogs::Errors::ThrottlingException" do
+    test "retry on Aws::CloudWatchLogs::Errors::ThrottlingException in get_log_events" do
       config = <<-CONFIG
         tag test
         @type cloudwatch_logs
@@ -634,11 +634,34 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       # so, it is expected to valid_next_token once
       mock(d.instance).valid_next_token(nil, nil).once
 
+      d.run
+      assert_equal(2, d.logs.select {|l| l =~ /ThrottlingException get_log_events. Waiting 0.2 seconds to retry/ }.size)
+    end
+
+    test "retry on Aws::CloudWatchLogs::Errors::ThrottlingException in describe_log_streams" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        use_log_stream_name_prefix true
+        state_file /tmp/state
+        fetch_interval 0.1
+        throttling_retry_seconds 0.2
+      CONFIG
+
+      # it will raises the error 2 times
       log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
-      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+      counter = 0
+      times = 2
+      stub(@client).describe_log_streams(anything) {
+        counter += 1
+        counter <= times ? raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")) : OpenStruct.new(log_streams: [log_stream], next_token: nil)
+      }
+
+      d = create_driver(config)
 
       d.run
-      assert_equal(2, d.logs.select {|l| l =~ /Waiting 0.2 seconds to retry/ }.size)
+      assert_equal(2, d.logs.select {|l| l =~ /ThrottlingException describe_log_streams. Waiting 0.2 seconds to retry/ }.size)
     end
   end
 
