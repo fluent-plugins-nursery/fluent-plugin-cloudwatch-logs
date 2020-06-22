@@ -8,7 +8,9 @@ module Fluent::Plugin
   class CloudwatchLogsInput < Input
     Fluent::Plugin.register_input('cloudwatch_logs', self)
 
-    helpers :parser, :thread, :compat_parameters
+    helpers :parser, :thread, :compat_parameters, :storage
+
+    DEFAULT_STORAGE_TYPE = 'local'
 
     config_param :aws_key_id, :string, default: nil, secret: true
     config_param :aws_sec_key, :string, default: nil, secret: true
@@ -21,7 +23,8 @@ module Fluent::Plugin
     config_param :log_group_name, :string
     config_param :log_stream_name, :string, default: nil
     config_param :use_log_stream_name_prefix, :bool, default: false
-    config_param :state_file, :string
+    config_param :state_file, :string, default: nil,
+                 deprecated: "Use <stroage> instead."
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
     config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
@@ -35,6 +38,12 @@ module Fluent::Plugin
 
     config_section :parse do
       config_set_default :@type, 'none'
+    end
+
+    config_section :storage do
+      config_set_default :usage, 'store_next_tokens'
+      config_set_default :@type, DEFAULT_STORAGE_TYPE
+      config_set_default :persistent, false
     end
 
     def initialize
@@ -54,6 +63,7 @@ module Fluent::Plugin
       if @start_time && @end_time && (@end_time < @start_time)
         raise Fluent::ConfigError, "end_time(#{@end_time}) should be greater than start_time(#{@start_time})."
       end
+      @next_token_storage = storage_create(usage: 'store_next_tokens', conf: config, default_type: DEFAULT_STORAGE_TYPE)
     end
 
     def start
@@ -100,20 +110,28 @@ module Fluent::Plugin
       end
     end
 
-    def state_file_for(log_stream_name)
-      return "#{@state_file}_#{log_stream_name.gsub(File::SEPARATOR, '-')}" if log_stream_name
-      return @state_file
+    def state_key_for(log_stream_name)
+      if log_stream_name
+        "#{@state_file}_#{log_stream_name.gsub(File::SEPARATOR, '-')}"
+      else
+        @state_file
+      end
+    end
+
+    def migrate_state_file_to_storage(log_stream_name)
+      @next_token_storage.put(:"#{state_key_for(log_stream_name)}", File.read(state_key_for(log_stream_name)).chomp)
+      File.delete(state_key_for(log_stream_name))
     end
 
     def next_token(log_stream_name)
-      return nil unless File.exist?(state_file_for(log_stream_name))
-      File.read(state_file_for(log_stream_name)).chomp
+      if @next_token_storage.persistent && File.exist?(state_key_for(log_stream_name))
+        migrate_state_file_to_storage(log_stream_name)
+      end
+      @next_token_storage.get(:"#{state_key_for(log_stream_name)}")
     end
 
     def store_next_token(token, log_stream_name = nil)
-      File.open(state_file_for(log_stream_name), 'w') do |f|
-        f.write token
-      end
+      @next_token_storage.put(:"#{state_key_for(log_stream_name)}", token)
     end
 
     def run
