@@ -31,6 +31,7 @@ module Fluent::Plugin
     config_param :end_time, :string, default: nil
     config_param :time_range_format, :string, default: "%Y-%m-%d %H:%M:%S"
     config_param :throttling_retry_seconds, :time, default: nil
+    config_param :include_metadata, :bool, default: false
 
     config_section :parse do
       config_set_default :@type, 'none'
@@ -130,8 +131,16 @@ module Fluent::Plugin
               log_streams.each do |log_stream|
                 log_stream_name = log_stream.log_stream_name
                 events = get_events(log_stream_name)
+                metadata = if @include_metadata
+                             {
+                               "log_stream_name" => log_stream_name,
+                               "log_group_name" => @log_group_name
+                             }
+                           else
+                             {}
+                           end
                 events.each do |event|
-                  emit(log_stream_name, event)
+                  emit(log_stream_name, event, metadata)
                 end
               end
             rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException
@@ -140,8 +149,16 @@ module Fluent::Plugin
             end
           else
             events = get_events(@log_stream_name)
+            metadata = if @include_metadata
+                          {
+                            "log_stream_name" => @log_stream_name,
+                            "log_group_name" => @log_group_name
+                          }
+                        else
+                          {}
+                        end
             events.each do |event|
-              emit(log_stream_name, event)
+              emit(log_stream_name, event, metadata)
             end
           end
         end
@@ -149,11 +166,14 @@ module Fluent::Plugin
       end
     end
 
-    def emit(stream, event)
+    def emit(stream, event, metadata)
       if @parser
         @parser.parse(event.message) {|time,record|
           if @use_aws_timestamp
             time = (event.timestamp / 1000).floor
+          end
+          unless metadata.empty?
+            record.merge!("metadata" => metadata)
           end
           router.emit(@tag, time, record)
         }
@@ -161,6 +181,9 @@ module Fluent::Plugin
         time = (event.timestamp / 1000).floor
         begin
           record = @json_handler.load(event.message)
+          unless metadata.empty?
+            record.merge!("metadata" => metadata)
+          end
           router.emit(@tag, time, record)
         rescue JSON::ParserError, Yajl::ParseError => error # Catch parser errors
           log.error "Invalid JSON encountered while parsing event.message"
