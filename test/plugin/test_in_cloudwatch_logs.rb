@@ -201,7 +201,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
                            '@type' => 'cloudwatch_logs',
                            'log_group_name' => "#{log_group_name}",
                            'log_stream_name' => "#{log_stream_name}",
-                           'state_file' => '/tmp/state',
                           }
       cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
       cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
@@ -211,7 +210,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       csv_format_config = config_element('ROOT', '', cloudwatch_config, [
                                            config_element('parse', '', {'@type' => 'csv',
                                                                         'keys' => 'time,message',
-                                                                        'time_key' => 'time'})
+                                                                        'time_key' => 'time'}),
+                                           config_element('storage', '', {'@type' => 'local',
+                                                                          'path' => '/tmp/state'})
                                          ])
       create_log_stream
 
@@ -238,7 +239,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
                            '@type' => 'cloudwatch_logs',
                            'log_group_name' => "#{log_group_name}",
                            'log_stream_name' => "#{log_stream_name}",
-                           'state_file' => '/tmp/state',
                            'include_metadata' => true,
                           }
       cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
@@ -249,7 +249,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       csv_format_config = config_element('ROOT', '', cloudwatch_config, [
                                            config_element('parse', '', {'@type' => 'csv',
                                                                         'keys' => 'time,message',
-                                                                        'time_key' => 'time'})
+                                                                        'time_key' => 'time'}),
+                                           config_element('storage', '', {'@type' => 'local',
+                                                                          'path' => '/tmp/state'})
+
                                          ])
       create_log_stream
 
@@ -320,7 +323,6 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
                            '@type' => 'cloudwatch_logs',
                            'log_group_name' => "#{log_group_name}",
                            'log_stream_name' => "#{log_stream_name}",
-                           'state_file' => '/tmp/state',
                           }
       cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
       cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
@@ -330,7 +332,9 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       regex_format_config = config_element('ROOT', '', cloudwatch_config, [
                                            config_element('parse', '', {'@type' => 'regexp',
                                                                         'expression' => "/^(?<cloudwatch>[^ ]*)?/",
-                                                                       })
+                                                                       }),
+                                           config_element('storage', '', {'@type' => 'local',
+                                                                          'path' => '/tmp/state'})
                                          ])
       create_log_stream
 

@@ -178,6 +178,9 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   #<parse>
   # @type none # or csv, tsv, regexp etc.
   #</parse>
+  #<storage>
+  # @type local # or redis, memcached, etc.
+  #</storage>
 </source>
 ```
 
@@ -195,7 +198,7 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `region`: AWS Region.  See [Authentication](#authentication) for more information.
 * `throttling_retry_seconds`: time period in seconds to retry a request when aws CloudWatch rate limit exceeds (default: nil)
 * `include_metadata`: include metadata such as `log_group_name` and `log_stream_name`. (default: false)
-* `state_file`: file to store current state (e.g. next\_forward\_token)
+* `state_file`: file to store current state (e.g. next\_forward\_token). This parameter is deprecated. Use `<storage>` instead.
 * `tag`: fluentd tag
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
@@ -205,6 +208,7 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `time_range_format`: specify time format for time range. (default: `%Y-%m-%d %H:%M:%S`)
 * `format`: specify CloudWatchLogs' log format. (default `nil`)
 * `<parse>`: specify parser plugin configuration. see also: https://docs.fluentd.org/v/1.0/parser#how-to-use
+* `<storage>`: specify storage plugin configuration. see also: https://docs.fluentd.org/v/1.0/storage#how-to-use
 
 ## Test
 
