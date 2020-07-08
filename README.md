@@ -43,6 +43,46 @@ Create IAM user with a policy like the following:
 }
 ```
 
+More restricted IAM policy for `out_cloudwatch_logs` is:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:PutLogEvents",
+                "logs:CreateLogGroup",
+                "logs:PutRetentionPolicy",
+                "logs:CreateLogStream",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+Also, more restricted IAM policy for `in_cloudwatch_logs` is:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:GetLogEvents",
+                "logs:DescribeLogStreams"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ## Authentication
 
 There are several methods to provide authentication credentials.  Be aware that there are various tradeoffs for these methods,
