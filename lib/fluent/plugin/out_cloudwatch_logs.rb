@@ -202,6 +202,7 @@ module Fluent::Plugin
 
           if @auto_create_stream
             create_log_group(group_name, awstags, retention_in_days)
+            log.debug "Log group '#{group_name}' is created"
           else
             log.warn "Log group '#{group_name}' does not exist"
             next
