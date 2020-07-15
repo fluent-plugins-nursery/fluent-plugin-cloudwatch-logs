@@ -713,6 +713,32 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
     end
 
+    def test_retrying_on_throttling_exception_with_put_log_events_retry_limit_as_zero
+      client = Aws::CloudWatchLogs::Client.new
+      @called = false
+      stub(client).put_log_events(anything) {
+        raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      }.once.ordered
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        @log_level debug
+        put_log_events_retry_limit 0
+      EOC
+      time = event_time
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: fluentd_tag) do
+        d.feed(time, {'message' => 'message1'})
+      end
+
+      logs = d.logs
+      assert_equal(0, logs.select {|l| l =~ /Called PutLogEvents API/ }.size)
+      assert_equal(1, logs.select {|l| l =~ /failed to PutLogEvents/ }.size)
+      assert_equal(0, logs.select {|l| l =~ /retry succeeded/ }.size)
+    end
+
     def test_retrying_on_throttling_exception
       resp = Object.new
       mock(resp).rejected_log_events_info {}
