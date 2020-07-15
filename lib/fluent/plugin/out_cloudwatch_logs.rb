@@ -7,6 +7,8 @@ module Fluent::Plugin
   class CloudwatchLogsOutput < Output
     Fluent::Plugin.register_output('cloudwatch_logs', self)
 
+    class TooLargeEventError < Fluent::UnrecoverableError; end
+
     helpers :compat_parameters, :inject
 
     DEFAULT_BUFFER_TYPE = "memory"
@@ -319,8 +321,7 @@ module Fluent::Plugin
       while event = events.shift
         event_bytesize = event[:message].bytesize + EVENT_HEADER_SIZE
         if MAX_EVENT_SIZE < event_bytesize
-          log.warn "Log event in #{group_name} is discarded because it is too large: #{event_bytesize} bytes exceeds limit of #{MAX_EVENT_SIZE}"
-          break
+          raise TooLargeEventError, "Log event in #{group_name} is discarded because it is too large: #{event_bytesize} bytes exceeds limit of #{MAX_EVENT_SIZE}"
         end
 
         new_chunk = chunk + [event]
