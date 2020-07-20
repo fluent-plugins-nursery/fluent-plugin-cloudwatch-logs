@@ -630,6 +630,8 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     end
 
     test "emit with today's log stream" do
+      omit "This testcase is unstable in CI." if ENV["CI"] == "true"
+
       config = <<-CONFIG
         tag test
         @type cloudwatch_logs
