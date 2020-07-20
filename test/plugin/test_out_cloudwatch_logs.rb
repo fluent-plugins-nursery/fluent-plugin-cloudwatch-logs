@@ -492,6 +492,47 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal("value2", awstags.fetch("tag2"))
     end
 
+    def test_log_group_aws_tags_with_placeholders
+      clear_log_group
+
+      config = {
+        "@type" => "cloudwatch_logs",
+        "auto_create_stream" => true,
+        "use_tag_as_stream" => true,
+        "log_group_name_key" => "group_name_key",
+        "log_group_aws_tags" => '{"tag1": "${tag}", "tag2": "${namespace_name}"}',
+      }
+      config.merge!(config_elementify(aws_key_id)) if aws_key_id
+      config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+      config.merge!(config_elementify(region)) if region
+      config.merge!(config_elementify(endpoint)) if endpoint
+
+      d = create_driver(
+        Fluent::Config::Element.new('ROOT', '', config, [
+          Fluent::Config::Element.new('buffer', 'tag, namespace_name', {
+            '@type' => 'memory',
+          }, [])
+        ])
+      )
+
+      records = [
+        {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, "namespace_name" => "fluentd"},
+        {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name, "namespace_name" => "fluentd"},
+        {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name, "namespace_name" => "fluentd"},
+      ]
+
+      time = Time.now
+      d.run(default_tag: fluentd_tag) do
+        records.each_with_index do |record, i|
+          d.feed(time.to_i + i, record)
+        end
+      end
+
+      awstags = get_log_group_tags
+      assert_equal(fluentd_tag, awstags.fetch("tag1"))
+      assert_equal("fluentd", awstags.fetch("tag2"))
+    end
+
     def test_retention_in_days
       clear_log_group
 
