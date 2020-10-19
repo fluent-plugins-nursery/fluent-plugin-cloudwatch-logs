@@ -46,6 +46,13 @@ module Fluent::Plugin
     config_param :remove_retention_in_days_key, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
     config_param :log_rejected_request, :bool, :default => false
+    config_section :web_identity_credentials, multi: false do
+      config_param :role_arn, :string
+      config_param :role_session_name, :string
+      config_param :web_identity_token_file, :string, default: nil #required
+      config_param :policy, :string, default: nil
+      config_param :duration_seconds, :time, default: nil
+    end
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -98,6 +105,18 @@ module Fluent::Plugin
           role_arn: @aws_sts_role_arn,
           role_session_name: @aws_sts_session_name
         )
+      elsif @web_identity_credentials
+        c = @web_identity_credentials
+        credentials_options = {}
+        credentials_options[:role_arn] = c.role_arn
+        credentials_options[:role_session_name] = c.role_session_name
+        credentials_options[:web_identity_token_file] = c.web_identity_token_file
+        credentials_options[:policy] = c.policy if c.policy
+        credentials_options[:duration_seconds] = c.duration_seconds if c.duration_seconds
+        if @region
+          credentials_options[:client] = Aws::STS::Client.new(:region => @region)
+        end
+        options[:credentials] = Aws::AssumeRoleWebIdentityCredentials.new(credentials_options)
       else
         options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       end

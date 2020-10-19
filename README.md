@@ -160,6 +160,11 @@ Fetch sample log from CloudWatch Logs:
   #endpoint http://localhost:5000/
   #json_handler json
   #log_rejected_request true
+  #<web_identity_credentials>
+  #  role_arn          "#{ENV['AWS_ROLE_ARN']}"
+  #  role_session_name ROLE_SESSION_NAME
+  #  web_identity_token_file "#{ENV['AWS_WEB_IDENTITY_TOKEN_FILE']}"
+  #</web_identity_credentials>
 </match>
 ```
 
@@ -194,6 +199,14 @@ Fetch sample log from CloudWatch Logs:
 * `retention_in_days_key`: use specified field of records as retention period
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name
+* `<web_identity_credentials>`: For EKS authentication.
+  * `role_arn`: The Amazon Resource Name (ARN) of the role to assume. This parameter is required when using `<web_identity_credentials>`.
+  * `role_session_name`: An identifier for the assumed role session.  This parameter is required when using `<web_identity_credentials>`.
+  * `web_identity_token_file`: The absolute path to the file on disk containing the OIDC token. This parameter is required when using `<web_identity_credentials>`.
+  * `policy`: An IAM policy in JSON format. (default `nil`)
+  * `duration_seconds`: The duration, in seconds, of the role session. The value can range from
+900 seconds (15 minutes) to 43200 seconds (12 hours). By default, the value
+is set to 3600 seconds (1 hour). (default `nil`)
 
 **NOTE:** `retention_in_days` requests additional IAM permission `logs:PutRetentionPolicy` for log_group.
 Please refer to [the PutRetentionPolicy column in documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/permissions-reference-cwl.html) for details.
@@ -221,6 +234,11 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   #<storage>
   # @type local # or redis, memcached, etc.
   #</storage>
+  #<web_identity_credentials>
+  #  role_arn          "#{ENV['AWS_ROLE_ARN']}"
+  #  role_session_name ROLE_SESSION_NAME
+  #  web_identity_token_file "#{ENV['AWS_WEB_IDENTITY_TOKEN_FILE']}"
+  #</web_identity_credentials>
 </source>
 ```
 
@@ -249,6 +267,14 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `format`: specify CloudWatchLogs' log format. (default `nil`)
 * `<parse>`: specify parser plugin configuration. see also: https://docs.fluentd.org/v/1.0/parser#how-to-use
 * `<storage>`: specify storage plugin configuration. see also: https://docs.fluentd.org/v/1.0/storage#how-to-use
+* `<web_identity_credentials>`: For EKS authentication.
+  * `role_arn`: The Amazon Resource Name (ARN) of the role to assume. This parameter is required when using `<web_identity_credentials>`.
+  * `role_session_name`: An identifier for the assumed role session.  This parameter is required when using `<web_identity_credentials>`.
+  * `web_identity_token_file`: The absolute path to the file on disk containing the OIDC token. This parameter is required when using `<web_identity_credentials>`.
+  * `policy`: An IAM policy in JSON format. (default `nil`)
+  * `duration_seconds`: The duration, in seconds, of the role session. The value can range from
+900 seconds (15 minutes) to 43200 seconds (12 hours). By default, the value
+is set to 3600 seconds (1 hour). (default `nil`)
 
 ## Test
 
