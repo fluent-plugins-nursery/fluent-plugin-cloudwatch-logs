@@ -19,6 +19,7 @@ module Fluent::Plugin
     config_param :aws_use_sts, :bool, default: false
     config_param :aws_sts_role_arn, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
+    config_param :aws_sts_endpoint_url, :string, default: nil
     config_param :region, :string, :default => nil
     config_param :endpoint, :string, :default => nil
     config_param :log_group_name, :string, :default => nil
@@ -101,10 +102,17 @@ module Fluent::Plugin
 
       if @aws_use_sts
         Aws.config[:region] = options[:region]
-        options[:credentials] = Aws::AssumeRoleCredentials.new(
+        credentials_options = {
           role_arn: @aws_sts_role_arn,
           role_session_name: @aws_sts_session_name
-        )
+        }
+        credentials_options[:sts_endpoint_url] = @aws_sts_endpoint_url if @aws_sts_endpoint_url
+        if @region and @aws_sts_endpoint_url
+          credentails_options[:client] = Aws::STS::Client.new(:region => @region, endpoint: @aws_sts_endpoint_url)
+        elsif @region
+          credentails_options[:client] = Aws::STS::Client.new(:region => @region)
+        end
+        options[:credentials] = Aws::AssumeRoleCredentials.new(credentials_options)
       elsif @web_identity_credentials
         c = @web_identity_credentials
         credentials_options = {}
