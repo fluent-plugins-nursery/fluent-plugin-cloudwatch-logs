@@ -108,9 +108,9 @@ module Fluent::Plugin
         }
         credentials_options[:sts_endpoint_url] = @aws_sts_endpoint_url if @aws_sts_endpoint_url
         if @region and @aws_sts_endpoint_url
-          credentails_options[:client] = Aws::STS::Client.new(:region => @region, endpoint: @aws_sts_endpoint_url)
+          credentials_options[:client] = Aws::STS::Client.new(:region => @region, endpoint: @aws_sts_endpoint_url)
         elsif @region
-          credentails_options[:client] = Aws::STS::Client.new(:region => @region)
+          credentials_options[:client] = Aws::STS::Client.new(:region => @region)
         end
         options[:credentials] = Aws::AssumeRoleCredentials.new(credentials_options)
       elsif @web_identity_credentials
