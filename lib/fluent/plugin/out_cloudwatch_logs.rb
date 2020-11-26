@@ -9,7 +9,7 @@ module Fluent::Plugin
 
     class TooLargeEventError < Fluent::UnrecoverableError; end
 
-    helpers :compat_parameters, :inject
+    helpers :compat_parameters, :inject, :formatter
 
     DEFAULT_BUFFER_TYPE = "memory"
 
@@ -58,6 +58,9 @@ module Fluent::Plugin
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
     end
+    config_section :format do
+      config_set_default :@type, 'json'
+    end
 
     MAX_EVENTS_SIZE = 1_048_576
     MAX_EVENT_SIZE = 256 * 1024
@@ -88,6 +91,22 @@ module Fluent::Plugin
       if [conf['retention_in_days'], conf['retention_in_days_key']].compact.size > 1
         raise ConfigError, "Set only one of retention_in_days, retention_in_days_key"
       end
+
+      formatter_conf = conf.elements('format').first
+      @formatter_proc = unless formatter_conf
+                          unless @message_keys.empty?
+                            Proc.new { |tag, time, record|
+                              @message_keys.map{|k| record[k].to_s }.reject{|e| e.empty? }.join(' ')
+                            }
+                          else
+                            Proc.new { |tag, time, record|
+                              @json_handler.dump(record)
+                            }
+                          end
+                        else
+                          formatter = formatter_create(usage: 'cloudwatch-logs-plugin', conf: formatter_conf)
+                          formatter.method(:format)
+                        end
     end
 
     def start
@@ -264,11 +283,7 @@ module Fluent::Plugin
           time_ms = (time.to_f * 1000).floor
 
           scrub_record!(record)
-          unless @message_keys.empty?
-            message = @message_keys.map{|k| record[k].to_s }.reject{|e| e.empty? }.join(' ')
-          else
-            message = @json_handler.dump(record)
-          end
+          message = @formatter_proc.call(t, time, record)
 
           if message.empty?
             log.warn "Within specified message_key(s): (#{@message_keys.join(',')}) do not have non-empty record. Skip."
