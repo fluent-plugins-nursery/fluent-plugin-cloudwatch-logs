@@ -165,6 +165,9 @@ Fetch sample log from CloudWatch Logs:
   #  role_session_name ROLE_SESSION_NAME
   #  web_identity_token_file "#{ENV['AWS_WEB_IDENTITY_TOKEN_FILE']}"
   #</web_identity_credentials>
+  #<format>
+  #  @type ltsv
+  #</format>
 </match>
 ```
 
@@ -207,6 +210,7 @@ Fetch sample log from CloudWatch Logs:
   * `duration_seconds`: The duration, in seconds, of the role session. The value can range from
 900 seconds (15 minutes) to 43200 seconds (12 hours). By default, the value
 is set to 3600 seconds (1 hour). (default `nil`)
+* `<format>`: For specifying records format. See [formatter overview](https://docs.fluentd.org/formatter) and [formatter section overview](https://docs.fluentd.org/configuration/format-section) on the official documentation.
 
 **NOTE:** `retention_in_days` requests additional IAM permission `logs:PutRetentionPolicy` for log_group.
 Please refer to [the PutRetentionPolicy column in documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/permissions-reference-cwl.html) for details.
