@@ -76,6 +76,143 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
     end
 
+    sub_test_case "formatter" do
+      test "csv" do
+        new_log_stream
+
+        config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_stream' => true,
+                  'log_stream_name' => log_stream_name,
+                  'log_group_name' => log_group_name,
+                  '@log_level' => 'debug'}
+        config.merge!(config_elementify(aws_key_id)) if aws_key_id
+        config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+        config.merge!(config_elementify(region)) if region
+        config.merge!(config_elementify(endpoint)) if endpoint
+
+        d = create_driver(
+          Fluent::Config::Element.new('ROOT', '', config, [
+                                        Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                      '@type' => 'memory',
+                                                                      'timekey' => 3600
+                                                                    }, []),
+                                        Fluent::Config::Element.new('format', '', {
+                                                                      '@type' => 'csv',
+                                                                      'fields' => ["message","cloudwatch"],
+                                                                    }, []),
+                                      ]))
+
+        time = event_time
+        d.run(default_tag: fluentd_tag, flush: true) do
+          d.feed(time, {'cloudwatch' => 'logs1'})
+          # Addition converts EventTime to seconds
+          d.feed(time + 1, {'cloudwatch' => 'logs2'})
+        end
+
+        sleep 10
+
+        logs = d.logs
+        events = get_log_events
+        assert_equal(2, events.size)
+        assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+        assert_equal('"","logs1"', events[0].message.strip)
+        assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+        assert_equal('"","logs2"', events[1].message.strip)
+
+        assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+      end
+
+      test "ltsv" do
+        new_log_stream
+
+        config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_stream' => true,
+                  'log_stream_name' => log_stream_name,
+                  'log_group_name' => log_group_name,
+                  '@log_level' => 'debug'}
+        config.merge!(config_elementify(aws_key_id)) if aws_key_id
+        config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+        config.merge!(config_elementify(region)) if region
+        config.merge!(config_elementify(endpoint)) if endpoint
+
+        d = create_driver(
+          Fluent::Config::Element.new('ROOT', '', config, [
+                                        Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                      '@type' => 'memory',
+                                                                      'timekey' => 3600
+                                                                    }, []),
+                                        Fluent::Config::Element.new('format', '', {
+                                                                      '@type' => 'ltsv',
+                                                                      'fields' => ["message","cloudwatch"],
+                                                                    }, []),
+                                      ]))
+
+        time = event_time
+        d.run(default_tag: fluentd_tag, flush: true) do
+          d.feed(time, {'cloudwatch' => 'logs1'})
+          # Addition converts EventTime to seconds
+          d.feed(time + 1, {'cloudwatch' => 'logs2'})
+        end
+
+        sleep 10
+
+        logs = d.logs
+        events = get_log_events
+        assert_equal(2, events.size)
+        assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+        assert_equal('cloudwatch:logs1', events[0].message.strip)
+        assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+        assert_equal('cloudwatch:logs2', events[1].message.strip)
+
+        assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+      end
+
+      test "single_value" do
+        new_log_stream
+
+        config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_stream' => true,
+                  'log_stream_name' => log_stream_name,
+                  'log_group_name' => log_group_name,
+                  '@log_level' => 'debug'}
+        config.merge!(config_elementify(aws_key_id)) if aws_key_id
+        config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+        config.merge!(config_elementify(region)) if region
+        config.merge!(config_elementify(endpoint)) if endpoint
+
+        d = create_driver(
+          Fluent::Config::Element.new('ROOT', '', config, [
+                                        Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                      '@type' => 'memory',
+                                                                      'timekey' => 3600
+                                                                    }, []),
+                                        Fluent::Config::Element.new('format', '', {
+                                                                      '@type' => 'single_value',
+                                                                      'message_key' => "cloudwatch",
+                                                                    }, []),
+                                      ]))
+
+        time = event_time
+        d.run(default_tag: fluentd_tag, flush: true) do
+          d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'Hi!'})
+          # Addition converts EventTime to seconds
+          d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'Hi!'})
+        end
+
+        sleep 10
+
+        logs = d.logs
+        events = get_log_events
+        assert_equal(2, events.size)
+        assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+        assert_equal('logs1', events[0].message.strip)
+        assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+        assert_equal('logs2', events[1].message.strip)
+
+        assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+      end
+    end
+
     def test_write_utf8
       new_log_stream
 
