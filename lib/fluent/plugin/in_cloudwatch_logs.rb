@@ -225,7 +225,7 @@ module Fluent::Plugin
       end
     end
 
-    def emit(gruop, stream, event, metadata)
+    def emit(group, stream, event, metadata)
       if @parser
         @parser.parse(event.message) {|time,record|
           if @use_aws_timestamp
@@ -241,11 +241,11 @@ module Fluent::Plugin
         }
       else
         time = (event.timestamp / 1000).floor
-        if @add_log_group_name
-          record[@log_group_name_key] = group
-        end
         begin
           record = @json_handler.load(event.message)
+          if @add_log_group_name
+            record[@log_group_name_key] = group
+          end
           unless metadata.empty?
             record.merge!("metadata" => metadata)
           end
