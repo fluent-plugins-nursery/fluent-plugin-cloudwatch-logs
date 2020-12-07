@@ -99,39 +99,41 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
     end
 
-    def test_emit_with_use_log_group_name_prefix
-      set_log_group_name("fluent-plugin-cloudwatch-group-prefix-test-#{Time.now.to_f}")
-      create_log_stream
+    sub_test_case "use_log_group_name_prefix true" do
+      test "emit" do
+        set_log_group_name("fluent-plugin-cloudwatch-group-prefix-test-#{Time.now.to_f}")
+        create_log_stream
 
-      time_ms = (Time.now.to_f * 1000).floor
-      put_log_events([
-        {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
-        {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
-      ])
+        time_ms = (Time.now.to_f * 1000).floor
+        put_log_events([
+          {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+          {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+        ])
 
-      sleep 5
+        sleep 5
 
-      config = <<-EOC
-        tag test
-        @type cloudwatch_logs
-        log_group_name fluent-plugin-cloudwatch-group-prefix-test
-        use_log_group_name_prefix true
-        log_stream_name #{log_stream_name}
-        state_file /tmp/state
-        fetch_interval 1
-        #{aws_key_id}
-        #{aws_sec_key}
-        #{region}
-        #{endpoint}
-      EOC
+        config = <<-EOC
+          tag test
+          @type cloudwatch_logs
+          log_group_name fluent-plugin-cloudwatch-group-prefix-test
+          use_log_group_name_prefix true
+          log_stream_name #{log_stream_name}
+          state_file /tmp/state
+          fetch_interval 1
+          #{aws_key_id}
+          #{aws_sec_key}
+          #{region}
+          #{endpoint}
+        EOC
 
-      d = create_driver(config)
-      d.run(expect_emits: 2, timeout: 5)
+        d = create_driver(config)
+        d.run(expect_emits: 2, timeout: 5)
 
-      emits = d.events
-      assert_equal(2, emits.size)
-      assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
-      assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+      end
     end
 
     def test_emit_with_metadata
