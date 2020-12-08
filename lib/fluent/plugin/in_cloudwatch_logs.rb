@@ -131,15 +131,7 @@ module Fluent::Plugin
       super
     end
 
-    private
-    def configure_parser(conf)
-      if conf['format']
-        @parser = parser_create
-      elsif parser_config = conf.elements('parse').first
-        @parser = parser_create(conf: parser_config)
-      end
-    end
-
+    # No private for testing
     def state_key_for(log_stream_name, log_group_name = nil)
       if log_group_name && log_stream_name
         "#{@state_file}_#{log_group_name.gsub(File::SEPARATOR, '-')}_#{log_stream_name.gsub(File::SEPARATOR, '-')}"
@@ -147,6 +139,15 @@ module Fluent::Plugin
         "#{@state_file}_#{log_stream_name.gsub(File::SEPARATOR, '-')}"
       else
         @state_file
+      end
+    end
+
+    private
+    def configure_parser(conf)
+      if conf['format']
+        @parser = parser_create
+      elsif parser_config = conf.elements('parse').first
+        @parser = parser_create(conf: parser_config)
       end
     end
 

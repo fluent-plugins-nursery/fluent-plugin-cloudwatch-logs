@@ -196,7 +196,8 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
                                              config_element('storage', '', {'@type' => 'local',
                                                                             'path' => '/tmp/state'})
                                            ])
-        set_log_group_name("fluent-plugin-cloudwatch-with-csv-format-#{Time.now.to_f}")
+        log_group_name = "fluent-plugin-cloudwatch-with-csv-format-#{Time.now.to_f}"
+        set_log_group_name(log_group_name)
         create_log_stream
 
         time_ms = (Time.now.to_f * 1000).floor
@@ -210,6 +211,8 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
 
         d = create_driver(csv_format_config)
         d.run(expect_emits: 2, timeout: 5)
+        next_token = d.instance.instance_variable_get(:@next_token_storage)
+        assert_true next_token.get(d.instance.state_key_for(log_stream_name, log_group_name)).is_a?(String)
 
         emits = d.events
         assert_equal(2, emits.size)
