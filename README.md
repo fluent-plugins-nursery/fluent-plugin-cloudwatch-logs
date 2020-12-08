@@ -222,6 +222,9 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   @type cloudwatch_logs
   tag cloudwatch.in
   log_group_name group
+  #add_log_group_name true
+  #log_group_name_key group_name_key
+  #use_log_group_name_prefix true
   log_stream_name stream
   #use_log_stream_name_prefix true
   state_file /var/lib/fluent/group_stream.in.state
@@ -256,6 +259,9 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `http_proxy`: use to set an optional HTTP proxy
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 * `log_group_name`: name of log group to fetch logs
+* `add_log_group_name`: add record into the name of log group (default `false`)
+* `log_group_name_key`: specify the key where adding record into the name of log group (default `'log_group'`)
+* `use_log_group_name_prefix`: to use `log_group_name` as log group name prefix (default `false`)
 * `log_stream_name`: name of log stream to fetch logs
 * `region`: AWS Region.  See [Authentication](#authentication) for more information.
 * `throttling_retry_seconds`: time period in seconds to retry a request when aws CloudWatch rate limit exceeds (default: nil)
