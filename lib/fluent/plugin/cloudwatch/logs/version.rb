@@ -2,7 +2,7 @@ module Fluent
   module Plugin
     module Cloudwatch
       module Logs
-        VERSION = "0.12.0"
+        VERSION = "0.13.0"
       end
     end
   end
