@@ -99,6 +99,128 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
     end
 
+    sub_test_case "use_log_group_name_prefix true" do
+      test "emit" do
+        set_log_group_name("fluent-plugin-cloudwatch-group-prefix-test-#{Time.now.to_f}")
+        create_log_stream
+
+        time_ms = (Time.now.to_f * 1000).floor
+        put_log_events([
+          {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+          {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+        ])
+
+        sleep 5
+
+        config = <<-EOC
+          tag test
+          @type cloudwatch_logs
+          log_group_name fluent-plugin-cloudwatch-group-prefix-test
+          use_log_group_name_prefix true
+          log_stream_name #{log_stream_name}
+          state_file /tmp/state
+          fetch_interval 1
+          #{aws_key_id}
+          #{aws_sec_key}
+          #{region}
+          #{endpoint}
+        EOC
+
+        d = create_driver(config)
+        d.run(expect_emits: 2, timeout: 5)
+
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+      end
+
+      test "emit with add_log_group_name" do
+        set_log_group_name("fluent-plugin-cloudwatch-add-log-group-#{Time.now.to_f}")
+        create_log_stream
+
+        time_ms = (Time.now.to_f * 1000).floor
+        put_log_events([
+          {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+          {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+        ])
+
+        sleep 5
+
+        log_group_name_key = 'log_group_key'
+        config = <<-EOC
+          tag test
+          @type cloudwatch_logs
+          log_group_name fluent-plugin-cloudwatch-add-log-group
+          use_log_group_name_prefix true
+          add_log_group_name true
+          log_group_name_key #{log_group_name_key}
+          log_stream_name #{log_stream_name}
+          state_file /tmp/state
+          fetch_interval 1
+          #{aws_key_id}
+          #{aws_sec_key}
+          #{region}
+          #{endpoint}
+        EOC
+
+        d = create_driver(config)
+        d.run(expect_emits: 2, timeout: 5)
+
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_true emits[0][2].has_key?(log_group_name_key)
+        emits[0][2].delete(log_group_name_key)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+        assert_true emits[1][2].has_key?(log_group_name_key)
+        emits[1][2].delete(log_group_name_key)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+      end
+
+      test "emit with add_log_group_name and <parse> csv" do
+        cloudwatch_config = {'tag' => "test",
+                             '@type' => 'cloudwatch_logs',
+                             'log_group_name' => "fluent-plugin-cloudwatch-with-csv-format",
+                             'log_stream_name' => "#{log_stream_name}",
+                             'use_log_group_name_prefix' => true,
+                            }
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+        csv_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                             config_element('parse', '', {'@type' => 'csv',
+                                                                          'keys' => 'time,message',
+                                                                          'time_key' => 'time'}),
+                                             config_element('storage', '', {'@type' => 'local',
+                                                                            'path' => '/tmp/state'})
+                                           ])
+        log_group_name = "fluent-plugin-cloudwatch-with-csv-format-#{Time.now.to_f}"
+        set_log_group_name(log_group_name)
+        create_log_stream
+
+        time_ms = (Time.now.to_f * 1000).floor
+        log_time_ms = time_ms - 10000
+        put_log_events([
+          {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+          {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+        ])
+
+        sleep 5
+
+        d = create_driver(csv_format_config)
+        d.run(expect_emits: 2, timeout: 5)
+        next_token = d.instance.instance_variable_get(:@next_token_storage)
+        assert_true next_token.get(d.instance.state_key_for(log_stream_name, log_group_name)).is_a?(String)
+
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+        assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+      end
+    end
+
     def test_emit_with_metadata
       create_log_stream
 

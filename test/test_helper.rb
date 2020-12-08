@@ -17,6 +17,10 @@ module CloudwatchLogsTestHelper
     @logs ||= Aws::CloudWatchLogs::Client.new(options)
   end
 
+  def set_log_group_name(log_group_name)
+    @log_group_name = log_group_name
+  end
+
   def log_group_name
     @log_group_name ||= "fluent-plugin-cloudwatch-test-#{Time.now.to_f}"
   end
