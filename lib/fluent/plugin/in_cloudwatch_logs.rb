@@ -155,7 +155,7 @@ module Fluent::Plugin
       File.delete(state_key_for(log_stream_name))
     end
 
-    def next_token(log_stream_name, log_gruop_name = nil)
+    def next_token(log_stream_name, log_group_name = nil)
       if @next_token_storage.persistent && File.exist?(state_key_for(log_stream_name))
         migrate_state_file_to_storage(log_stream_name)
       end
