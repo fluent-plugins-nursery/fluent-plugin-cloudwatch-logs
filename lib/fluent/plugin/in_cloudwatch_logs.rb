@@ -185,7 +185,7 @@ module Fluent::Plugin
             if @use_log_stream_name_prefix || @use_todays_log_stream
               log_stream_name_prefix = @use_todays_log_stream ? get_todays_date : @log_stream_name
               begin
-                log_streams = describe_log_streams(log_stream_name_prefix)
+                log_streams = describe_log_streams(log_stream_name_prefix, nil, nil, log_group_name)
                 log_streams.concat(describe_log_streams(get_yesterdays_date)) if @use_todays_log_stream
                 log_streams.each do |log_stream|
                   log_stream_name = log_stream.log_stream_name
@@ -193,7 +193,7 @@ module Fluent::Plugin
                   metadata = if @include_metadata
                                {
                                  "log_stream_name" => log_stream_name,
-                                 "log_group_name" => @log_group_name
+                                 "log_group_name" => log_group_name
                                }
                              else
                                {}
@@ -281,10 +281,10 @@ module Fluent::Plugin
       end
     end
 
-    def describe_log_streams(log_stream_name_prefix, log_streams = nil, next_token = nil)
+    def describe_log_streams(log_stream_name_prefix, log_streams = nil, next_token = nil, log_group_name=nil)
       throttling_handler('describe_log_streams') do
         request = {
-          log_group_name: @log_group_name
+          log_group_name: log_group_name != nil ? log_group_name : @log_group_name
         }
         request[:next_token] = next_token if next_token
         request[:log_stream_name_prefix] = log_stream_name_prefix if log_stream_name_prefix
