@@ -295,7 +295,7 @@ module Fluent::Plugin
           log_streams = response.log_streams
         end
         if response.next_token
-          log_streams = describe_log_streams(log_stream_name_prefix, log_streams, response.next_token)
+          log_streams = describe_log_streams(log_stream_name_prefix, log_streams, response.next_token, log_group_name)
         end
         log_streams
       end
