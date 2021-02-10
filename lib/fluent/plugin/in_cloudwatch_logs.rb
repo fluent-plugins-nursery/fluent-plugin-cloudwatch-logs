@@ -266,7 +266,11 @@ module Fluent::Plugin
         }
         request.merge!(start_time: @start_time) if @start_time
         request.merge!(end_time: @end_time) if @end_time
-        log_next_token = next_token(log_group_name, log_stream_name)
+        if @use_log_group_name_prefix
+          log_next_token = next_token(log_stream_name, log_group_name)
+        else
+          log_next_token = next_token(log_stream_name)
+        end
         request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty?
         response = @logs.get_log_events(request)
         if valid_next_token(log_next_token, response.next_forward_token)
