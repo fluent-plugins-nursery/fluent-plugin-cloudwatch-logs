@@ -221,8 +221,8 @@ module Fluent::Plugin
               end
             end
           end
-        sleep 1
         end
+        sleep 1
       end
     end
 
