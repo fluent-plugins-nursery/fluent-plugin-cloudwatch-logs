@@ -16,8 +16,16 @@
 
 ## Installation
 
+### For Fluentd
+
 ```sh
 gem install fluent-plugin-cloudwatch-logs
+```
+
+### For td-agent
+
+```sh
+td-agent-gem install fluent-plugin-cloudwatch-logs
 ```
 
 ## Preparation
