@@ -452,10 +452,8 @@ In more detail, please refer to [the officilal document for built-in placeholder
 
 * out_cloudwatch_logs
   * if the data is too big for API, split into multiple requests
-  * format
   * check data size
 * in_cloudwatch_logs
-  * format
   * fallback to start_time because next_token expires after 24 hours
 
 ## Contributing
