@@ -18,6 +18,7 @@ module Fluent::Plugin
     config_param :aws_instance_profile_credentials_retries, :integer, default: nil
     config_param :aws_use_sts, :bool, default: false
     config_param :aws_sts_role_arn, :string, default: nil
+    config_param :aws_sts_external_id, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
     config_param :aws_sts_endpoint_url, :string, default: nil
     config_param :region, :string, :default => nil
@@ -123,7 +124,8 @@ module Fluent::Plugin
         Aws.config[:region] = options[:region]
         credentials_options = {
           role_arn: @aws_sts_role_arn,
-          role_session_name: @aws_sts_session_name
+          role_session_name: @aws_sts_session_name,
+          external_id: @aws_sts_external_id
         }
         credentials_options[:sts_endpoint_url] = @aws_sts_endpoint_url if @aws_sts_endpoint_url
         if @region and @aws_sts_endpoint_url
