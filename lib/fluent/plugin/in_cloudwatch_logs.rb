@@ -272,7 +272,7 @@ module Fluent::Plugin
           log_next_token = next_token(log_stream_name)
         end
         request[:next_token] = log_next_token if !log_next_token.nil? && !log_next_token.empty?
-        request[:start_from_head] = true if (!log_next_token.nil? && !log_next_token.empty?) || @start_time || @end_time
+        request[:start_from_head] = true if read_from_head?(log_next_token)
         response = @logs.get_log_events(request)
         if valid_next_token(log_next_token, response.next_forward_token)
           if @use_log_group_name_prefix
@@ -284,6 +284,10 @@ module Fluent::Plugin
 
         response.events
       end
+    end
+
+    def read_from_head?(next_token)
+      (!next_token.nil? && !next_token.empty?) || @start_time || @end_time
     end
 
     def describe_log_streams(log_stream_name_prefix, log_streams = nil, next_token = nil, log_group_name=nil)
