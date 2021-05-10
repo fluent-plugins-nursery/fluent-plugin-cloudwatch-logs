@@ -127,8 +127,8 @@ module Fluent::Plugin
         credentials_options = {
           role_arn: @aws_sts_role_arn,
           role_session_name: @aws_sts_session_name,
-          external_id: @aws_sts_external_id
-          policy: @aws_sts_policy
+          external_id: @aws_sts_external_id,
+          policy: @aws_sts_policy,
           duration_seconds: @aws_sts_duration_seconds
         }
         credentials_options[:sts_endpoint_url] = @aws_sts_endpoint_url if @aws_sts_endpoint_url
