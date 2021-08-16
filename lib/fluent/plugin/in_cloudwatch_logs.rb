@@ -31,7 +31,7 @@ module Fluent::Plugin
     config_param :log_stream_name, :string, default: nil
     config_param :use_log_stream_name_prefix, :bool, default: false
     config_param :state_file, :string, default: nil,
-                 deprecated: "Use <stroage> instead."
+                 deprecated: "Use <storage> instead."
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
     config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
