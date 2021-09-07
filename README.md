@@ -106,7 +106,7 @@ export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
 export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
 ```
 
-Note: For this to work persistently the enviornment will need to be set in the startup scripts or docker variables.
+Note: For this to work persistently the environment will need to be set in the startup scripts or docker variables.
 
 ### AWS Configuration
 
@@ -184,6 +184,7 @@ Fetch sample log from CloudWatch Logs:
 * `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
 * `concurrency`: use to set the number of threads pushing data to CloudWatch. (default: 1)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `ssl_verify_peer`: when `true` (default), SSL peer certificates are verified when establishing a connection. Setting to `false` can be useful for testing.
 * `http_proxy`: use to set an optional HTTP proxy
 * `include_time_key`: include time key as part of the log entry (defaults to UTC)
 * `json_handler`: name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
@@ -263,6 +264,7 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `ssl_verify_peer`: when `true` (default), SSL peer certificates are verified when establishing a connection. Setting to `false` can be useful for testing.
 * `fetch_interval`: time period in seconds between checking CloudWatch for new logs. (default: 60)
 * `http_proxy`: use to set an optional HTTP proxy
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
