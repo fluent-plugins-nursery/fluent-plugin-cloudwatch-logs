@@ -25,6 +25,7 @@ module Fluent::Plugin
     config_param :aws_sts_endpoint_url, :string, default: nil
     config_param :region, :string, :default => nil
     config_param :endpoint, :string, :default => nil
+    config_param :ssl_verify_peer, :bool, :default => true
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
     config_param :auto_create_stream, :bool, default: false
@@ -120,6 +121,7 @@ module Fluent::Plugin
       options[:log_level] = :debug if log
       options[:region] = @region if @region
       options[:endpoint] = @endpoint if @endpoint
+      options[:ssl_verify_peer] = @ssl_verify_peer
       options[:instance_profile_credentials_retries] = @aws_instance_profile_credentials_retries if @aws_instance_profile_credentials_retries
 
       if @aws_use_sts

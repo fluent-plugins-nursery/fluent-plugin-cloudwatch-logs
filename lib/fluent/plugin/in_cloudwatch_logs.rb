@@ -23,6 +23,7 @@ module Fluent::Plugin
     config_param :aws_sts_endpoint_url, :string, default: nil
     config_param :region, :string, default: nil
     config_param :endpoint, :string, default: nil
+    config_param :ssl_verify_peer, :bool, :default => true
     config_param :tag, :string
     config_param :log_group_name, :string
     config_param :add_log_group_name, :bool, default: false
@@ -85,6 +86,7 @@ module Fluent::Plugin
       options = {}
       options[:region] = @region if @region
       options[:endpoint] = @endpoint if @endpoint
+      options[:ssl_verify_peer] = @ssl_verify_peer
       options[:http_proxy] = @http_proxy if @http_proxy
 
       if @aws_use_sts
