@@ -23,6 +23,7 @@ module Fluent::Plugin
     config_param :aws_sts_policy, :string, default: nil
     config_param :aws_sts_duration_seconds, :time, default: nil
     config_param :aws_sts_endpoint_url, :string, default: nil
+    config_param :aws_ecs_authentication, :bool, default: false
     config_param :region, :string, :default => nil
     config_param :endpoint, :string, :default => nil
     config_param :ssl_verify_peer, :bool, :default => true
@@ -152,6 +153,10 @@ module Fluent::Plugin
           credentials_options[:client] = Aws::STS::Client.new(:region => @region)
         end
         options[:credentials] = Aws::AssumeRoleWebIdentityCredentials.new(credentials_options)
+      elsif @aws_ecs_authentication
+        # collect AWS credential from ECS relative uri ENV variable
+        aws_container_credentials_relative_uri = ENV["AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"]
+        options[:credentials] = Aws::ECSCredentials.new({credential_path: aws_container_credentials_relative_uri}).credentials
       else
         options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       end
