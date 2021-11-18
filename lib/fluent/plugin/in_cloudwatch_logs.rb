@@ -199,7 +199,7 @@ module Fluent::Plugin
               log_stream_name_prefix = @use_todays_log_stream ? get_todays_date : @log_stream_name
               begin
                 log_streams = describe_log_streams(log_stream_name_prefix, nil, nil, log_group_name)
-                log_streams.concat(describe_log_streams(get_yesterdays_date)) if @use_todays_log_stream
+                log_streams.concat(describe_log_streams(get_yesterdays_date, nil, nil, log_group_name)) if @use_todays_log_stream
                 log_streams.each do |log_stream|
                   log_stream_name = log_stream.log_stream_name
                   events = get_events(log_group_name, log_stream_name)
