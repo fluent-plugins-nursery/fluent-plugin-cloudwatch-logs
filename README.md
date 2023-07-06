@@ -151,6 +151,7 @@ Fetch sample log from CloudWatch Logs:
   @type cloudwatch_logs
   log_group_name log-group-name
   log_stream_name log-stream-name
+  auto_create_group true
   auto_create_stream true
   #message_keys key1,key2,key3,...
   #max_message_length 32768
@@ -179,7 +180,8 @@ Fetch sample log from CloudWatch Logs:
 </match>
 ```
 
-* `auto_create_stream`: to create log group and stream automatically. (defaults to false)
+* `auto_create_group`: to create log group automatically. (defaults to false)
+* `auto_create_stream`: to create log stream automatically. (defaults to false)
 * `aws_key_id`: AWS Access Key.  See [Authentication](#authentication) for more information.
 * `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
 * `concurrency`: use to set the number of threads pushing data to CloudWatch. (default: 1)
@@ -207,7 +209,7 @@ Fetch sample log from CloudWatch Logs:
 * `remove_log_group_name_key`: remove field specified by `log_group_name_key`
 * `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
 * `remove_retention_in_days_key`: remove field specified by `retention_in_days_key`
-* `retention_in_days`: use to set the expiry time for log group when created with `auto_create_stream`. (default to no expiry)
+* `retention_in_days`: use to set the expiry time for log group when created with `auto_create_group`. (default to no expiry)
 * `retention_in_days_key`: use specified field of records as retention period
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name

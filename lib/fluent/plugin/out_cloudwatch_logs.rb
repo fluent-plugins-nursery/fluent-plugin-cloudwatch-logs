@@ -29,6 +29,7 @@ module Fluent::Plugin
     config_param :ssl_verify_peer, :bool, :default => true
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
+    config_param :auto_create_group, :bool, default: false
     config_param :auto_create_stream, :bool, default: false
     config_param :message_keys, :array, :default => [], value_type: :string
     config_param :max_message_length, :integer, :default => nil
@@ -264,7 +265,7 @@ module Fluent::Plugin
             end
           end
 
-          if @auto_create_stream
+          if @auto_create_group
             create_log_group(group_name, awstags, retention_in_days)
           else
             log.warn "Log group '#{group_name}' does not exist"
