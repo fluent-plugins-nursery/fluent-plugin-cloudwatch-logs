@@ -94,32 +94,49 @@ Also, more restricted IAM policy for `in_cloudwatch_logs` is:
 ## Authentication
 
 There are several methods to provide authentication credentials.  Be aware that there are various tradeoffs for these methods,
-although most of these tradeoffs are highly dependent on the specific environment.
+although most of these tradeoffs are highly dependent on the specific environment.  
 
-### Environment
 
-Set region and credentials via the environment:
+### Explicit Key/Secret
+
+Set region and credentials via the `aws_key_id` and `aws_sec_key` configuration options:
 
 ```sh
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
-export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
+<source>
+  @type cloudwatch_logs
+  region us-east-1      # You must supply a region
+  aws_key_id YOUR_KEY_ID
+  aws_sec_key YOUR_SECRET_KEY
+  [...]
+</source>
 ```
 
-Note: For this to work persistently the environment will need to be set in the startup scripts or docker variables.
+> Starting from fluentd version `v1.13.0` these values can be [pulled from Environment Variables](https://docs.fluentd.org/quickstart/faq#how-can-i-use-environment-variables-to-configure-parameters-dynamically), e.g. `aws_key_id "#{ENV['AWS_ACCESS_KEY_ID']}"`.
 
-### AWS Configuration
 
-The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the
+### EC2 Instance Profile
+
+When running on an EC2 instance, the authentication information can be pulled automatically from an attached [IAM Instance Profile](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#ec2-instance-profile).  To enable this, set `aws_use_instance_profile true`.  
+
+
+### Security Token Service (STS)  
+STS can be used to assume a role.  
+
+> This can be used for cross-account STS authentication, see [below](#cross-account-operation).
+
+To enable this, set `aws_use_sts true`, set `aws_sts_role_arn` to the role ARN to assume.  Optionally you can set `aws_sts_session_name`, which defaults to `fluentd`.  
+
+
+### AWS config file
+
+If no other authentication method is suppliued, the plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the
 fluentd user, run:
 
 ```sh
 aws configure
 ```
 
-### Configuration Parameters
-
-The authentication information can also be set
+The profile used by the plugin can be set using the `aws_profile` configuration option.  
 
 ## Example
 
@@ -182,6 +199,11 @@ Fetch sample log from CloudWatch Logs:
 * `auto_create_stream`: to create log group and stream automatically. (defaults to false)
 * `aws_key_id`: AWS Access Key.  See [Authentication](#authentication) for more information.
 * `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
+* `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
+* `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
+* `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
+* `aws_use_instance_profile`: If true, use EC2 Instance Profiles for authentication (default: `false`)
+* `aws_profile`: If no other AWS authentication is set, this AWS profile will be searched for in the default AWS config files (default: `default`)
 * `concurrency`: use to set the number of threads pushing data to CloudWatch. (default: 1)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `ssl_verify_peer`: when `true` (default), SSL peer certificates are verified when establishing a connection. Setting to `false` can be useful for testing.
@@ -260,9 +282,11 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 
 * `aws_key_id`: AWS Access Key.  See [Authentication](#authentication) for more information.
 * `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
+* `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `aws_sts_role_arn`: the role ARN to assume when using cross-account sts authentication
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
-* `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
+* `aws_use_instance_profile`: If true, use EC2 Instance Profiles for authentication (default: `false`)
+* `aws_profile`: If no other AWS authentication is set, this AWS profile will be searched for in the default AWS config files (default: `default`)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
 * `ssl_verify_peer`: when `true` (default), SSL peer certificates are verified when establishing a connection. Setting to `false` can be useful for testing.
 * `fetch_interval`: time period in seconds between checking CloudWatch for new logs. (default: 60)

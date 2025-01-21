@@ -23,8 +23,10 @@ module Fluent::Plugin
     config_param :aws_sts_policy, :string, default: nil
     config_param :aws_sts_duration_seconds, :time, default: nil
     config_param :aws_sts_endpoint_url, :string, default: nil
+    config_param :aws_use_instance_profile, :bool, default: false
     config_param :aws_ecs_authentication, :bool, default: false
-    config_param :region, :string, :default => nil
+    config_param :aws_profile, :string, default: 'default'
+    config_param :region, :string, default: nil
     config_param :endpoint, :string, :default => nil
     config_param :ssl_verify_peer, :bool, :default => true
     config_param :log_group_name, :string, :default => nil
@@ -157,9 +159,17 @@ module Fluent::Plugin
         # collect AWS credential from ECS relative uri ENV variable
         aws_container_credentials_relative_uri = ENV["AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"]
         options[:credentials] = Aws::ECSCredentials.new({credential_path: aws_container_credentials_relative_uri}).credentials
-      else
+      elsif @aws_key_id && @aws_sec_key
+        # Use AWS id and key if supplied
         options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
+      elsif @aws_use_instance_profile
+        # Use an EC2 instance profile
+        options[:credentials] = Aws::InstanceProfileCredentials.new()
+      else
+        # Default to looking for a Credentials file
+        options[:credentials] = Aws::SharedCredentials.new(:profile_name => @aws_profile)
       end
+      
       options[:http_proxy] = @http_proxy if @http_proxy
       @logs ||= Aws::CloudWatchLogs::Client.new(options)
       @sequence_tokens = {}
