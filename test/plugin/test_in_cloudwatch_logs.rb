@@ -3,6 +3,7 @@ require 'fluent/test/driver/input'
 require 'fluent/test/helpers'
 require 'date'
 require 'fluent/plugin/in_cloudwatch_logs'
+require 'ostruct'
 
 class CloudwatchLogsInputTest < Test::Unit::TestCase
   include CloudwatchLogsTestHelper
