@@ -68,7 +68,7 @@ module Fluent::Plugin
     end
 
     MAX_EVENTS_SIZE = 1_048_576
-    MAX_EVENT_SIZE = 256 * 1024
+    MAX_EVENT_SIZE = 1024 * 1024
     EVENT_HEADER_SIZE = 26
 
     def initialize
