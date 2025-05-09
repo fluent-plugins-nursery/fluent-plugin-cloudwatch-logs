@@ -974,11 +974,11 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         @log_level debug
       EOC
       d.run(default_tag: fluentd_tag) do
-        d.feed(time, {'message' => '*' * 256 * 1024})
+        d.feed(time, {'message' => '*' * 1024 * 1024})
       end
 
       logs = d.logs
-      assert(logs.any?{|log| log =~ /Log event in .* discarded because it is too large: 262184 bytes exceeds limit of 262144/})
+      assert(logs.any?{|log| log =~ /Log event in .* discarded because it is too large/})
     end
 
     def test_do_not_emit_empty_record

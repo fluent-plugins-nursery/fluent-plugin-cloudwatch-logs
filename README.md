@@ -328,7 +328,7 @@ rake test
 
 ## Caution
 
-If an event message exceeds API limit (256KB), the event will be discarded.
+If an event message exceeds API limit (1MB), the event will be discarded.
 
 ## Cross-Account Operation
 
