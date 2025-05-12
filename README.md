@@ -22,6 +22,12 @@
 gem install fluent-plugin-cloudwatch-logs
 ```
 
+### For fluent-package
+
+```sh
+fluent-gem install fluent-plugin-cloudwatch-logs
+```
+
 ### For td-agent
 
 ```sh
