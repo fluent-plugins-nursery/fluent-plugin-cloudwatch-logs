@@ -2,7 +2,7 @@ name: Testing on Ubuntu
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 jobs:
   build:
