@@ -2,7 +2,6 @@ require 'date'
 require 'time'
 require 'fluent/plugin/input'
 require 'fluent/plugin/parser'
-require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsInput < Input
@@ -36,7 +35,7 @@ module Fluent::Plugin
                  deprecated: "Use <storage> instead."
     config_param :fetch_interval, :time, default: 60
     config_param :http_proxy, :string, default: nil
-    config_param :json_handler, :enum, list: [:yajl, :json], default: :yajl
+    config_param :json_handler, :enum, list: [:yajl, :json], default: :json # NOTE: Contains yajl for backward compatibility
     config_param :use_todays_log_stream, :bool, default: false
     config_param :use_aws_timestamp, :bool, default: false
     config_param :start_time, :string, default: nil
@@ -133,7 +132,8 @@ module Fluent::Plugin
 
       @json_handler = case @json_handler
                       when :yajl
-                        Yajl
+                        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
+                        JSON
                       when :json
                         JSON
                       end
@@ -264,7 +264,7 @@ module Fluent::Plugin
             record.merge!("metadata" => metadata)
           end
           router.emit(@tag, time, record)
-        rescue JSON::ParserError, Yajl::ParseError => error # Catch parser errors
+        rescue JSON::ParserError => error # Catch parser errors
           log.error "Invalid JSON encountered while parsing event.message"
           router.emit_error_event(@tag, time, { message: event.message }, error)
         end
