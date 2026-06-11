@@ -40,7 +40,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal('stream', d.instance.log_stream_name)
       assert_equal(true, d.instance.use_log_stream_name_prefix)
       assert_equal('/tmp/state', d.instance.state_file)
-      assert_equal(:yajl, d.instance.json_handler)
+      assert_equal(:json, d.instance.json_handler)
       assert_equal(true, d.instance.use_aws_timestamp)
       assert_equal(1560816000000, d.instance.start_time)
       assert_equal(1579305600000, d.instance.end_time)

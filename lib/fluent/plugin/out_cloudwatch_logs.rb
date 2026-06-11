@@ -1,7 +1,6 @@
 require 'fluent/plugin/output'
 require 'fluent/msgpack_factory'
 require 'thread'
-require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsOutput < Output
@@ -50,7 +49,7 @@ module Fluent::Plugin
     config_param :retention_in_days, :integer, default: nil
     config_param :retention_in_days_key, :string, default: nil
     config_param :remove_retention_in_days_key, :bool, default: false
-    config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
+    config_param :json_handler, :enum, list: [:yajl, :json], :default => :json
     config_param :log_rejected_request, :bool, :default => false
     config_section :web_identity_credentials, multi: false do
       config_param :role_arn, :string
@@ -168,9 +167,7 @@ module Fluent::Plugin
       log.debug "Aws::CloudWatchLogs::Client initialized: log.level #{log.level} => #{options[:log_level]}"
 
       @json_handler = case @json_handler
-                      when :yajl
-                        Yajl
-                      when :json
+                      when :yajl, :json
                         JSON
                       end
     end
