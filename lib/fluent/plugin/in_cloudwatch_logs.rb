@@ -131,7 +131,10 @@ module Fluent::Plugin
       thread_create(:in_cloudwatch_logs_runner, &method(:run))
 
       @json_handler = case @json_handler
-                      when :yajl, :json
+                      when :yajl
+                        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
+                        JSON
+                      when :json
                         JSON
                       end
     end

@@ -167,7 +167,10 @@ module Fluent::Plugin
       log.debug "Aws::CloudWatchLogs::Client initialized: log.level #{log.level} => #{options[:log_level]}"
 
       @json_handler = case @json_handler
-                      when :yajl, :json
+                      when :yajl
+                        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
+                        JSON
+                      when :json
                         JSON
                       end
     end
