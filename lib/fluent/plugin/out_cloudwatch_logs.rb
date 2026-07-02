@@ -104,7 +104,7 @@ module Fluent::Plugin
                             }
                           else
                             Proc.new { |tag, time, record|
-                              @json_handler.dump(record)
+                              JSON.generate(record)
                             }
                           end
                         else
@@ -166,13 +166,11 @@ module Fluent::Plugin
 
       log.debug "Aws::CloudWatchLogs::Client initialized: log.level #{log.level} => #{options[:log_level]}"
 
-      @json_handler = case @json_handler
-                      when :yajl
-                        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
-                        JSON
-                      when :json
-                        JSON
-                      end
+      # Only check for deprecated json_handler
+      case @json_handler
+      when :yajl
+        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
+      end
     end
 
     def format(tag, time, record)

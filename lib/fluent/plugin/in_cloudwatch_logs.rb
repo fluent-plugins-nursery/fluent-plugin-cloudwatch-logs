@@ -130,13 +130,11 @@ module Fluent::Plugin
       @finished = false
       thread_create(:in_cloudwatch_logs_runner, &method(:run))
 
-      @json_handler = case @json_handler
-                      when :yajl
-                        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
-                        JSON
-                      when :json
-                        JSON
-                      end
+      # Only check for deprecated json_handler
+      case @json_handler
+      when :yajl
+        log.info "json_handler 'yajl' is deprecated. Please use 'json' instead."
+      end
     end
 
     def shutdown
@@ -256,7 +254,7 @@ module Fluent::Plugin
       else
         time = (event.timestamp / 1000).floor
         begin
-          record = @json_handler.load(event.message)
+          record = JSON.parse(event.message, allow_duplicate_key: true)
           if @add_log_group_name
             record[@log_group_name_key] = group
           end
