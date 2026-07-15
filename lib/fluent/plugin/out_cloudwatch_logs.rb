@@ -311,9 +311,7 @@ module Fluent::Plugin
             next
           end
 
-          if @max_message_length
-            message = message.slice(0, @max_message_length)
-          end
+          message = truncate_message(message)
 
           events << {timestamp: time_ms, message: message}
         end
@@ -348,6 +346,12 @@ module Fluent::Plugin
         end
       end
       new_record
+    end
+
+    def truncate_message(message)
+      return message unless @max_message_length
+
+      message.byteslice(0, @max_message_length).scrub("")
     end
 
     def scrub_record!(record)
