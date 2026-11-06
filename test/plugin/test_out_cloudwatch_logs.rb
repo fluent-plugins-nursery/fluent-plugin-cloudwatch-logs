@@ -1031,6 +1031,24 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal("�", record["str"])
   end
 
+  def test_truncate_message_uses_byte_limit_and_preserves_utf8
+    d = create_driver(<<-EOC)
+      #{default_config}
+      max_message_length 2
+      log_group_name #{log_group_name}
+      log_stream_name #{log_stream_name}
+    EOC
+
+    message = d.instance.send(:truncate_message, "éa")
+    split_character_message = d.instance.send(:truncate_message, "aé")
+
+    assert_equal("é", message)
+    assert_equal(2, message.bytesize)
+    assert_true(message.valid_encoding?)
+    assert_equal("a", split_character_message)
+    assert_true(split_character_message.valid_encoding?)
+  end
+
   private
   def default_config
     <<-EOC
