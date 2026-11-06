@@ -238,6 +238,16 @@ module Fluent::Plugin
           next
         end
 
+        if stream_name.to_s.empty?
+          log.warn "stream_name is empty (group_name=#{group_name})"
+          next
+        end
+
+        if group_name.nil? || group_name.to_s.empty?
+          log.warn "group_name is nil or empty (stream_name=#{stream_name})"
+          next
+        end
+
         unless log_group_exists?(group_name)
           #rs = [[name, timestamp, record],[name,timestamp,record]]
           #get tags and retention from first record

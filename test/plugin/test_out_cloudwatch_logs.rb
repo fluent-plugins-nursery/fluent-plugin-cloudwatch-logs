@@ -1031,6 +1031,40 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_equal("�", record["str"])
   end
 
+  sub_test_case "empty names from the record" do
+    def stubbed_client
+      Aws::CloudWatchLogs::Client.new(
+        stub_responses: true,
+        region: "us-east-1",
+        credentials: Aws::Credentials.new("test_id", "test_key"),
+      )
+    end
+
+    data("empty stream", [{"stream" => "", "group" => "test_group", "message" => "message1"}, /stream_name is empty \(group_name=test_group\)/])
+    data("empty group", [{"stream" => "test_stream", "group" => "", "message" => "message1"}, /group_name is nil or empty \(stream_name=test_stream\)/])
+    data("missing group", [{"stream" => "test_stream", "message" => "message1"}, /group_name is nil or empty \(stream_name=test_stream\)/])
+    def test_skip_records_without_usable_names(data)
+      record, warning = data
+      client = stubbed_client
+      d = create_driver(<<-EOC)
+        @type cloudwatch_logs
+        region us-east-1
+        aws_key_id test_id
+        aws_sec_key test_key
+        auto_create_stream true
+        log_group_name_key group
+        log_stream_name_key stream
+      EOC
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: "test") do
+        d.feed(event_time, record)
+      end
+
+      assert_equal([], client.api_requests.map {|r| r[:operation_name] })
+      assert(d.logs.any? {|log| log =~ warning })
+    end
+  end
+
   private
   def default_config
     <<-EOC
