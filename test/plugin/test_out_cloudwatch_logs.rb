@@ -1056,11 +1056,19 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         log_stream_name_key stream
       EOC
       d.instance.instance_variable_set(:@logs, client)
+      valid_record = {"stream" => "valid_stream", "group" => "valid_group", "message" => "message2"}
       d.run(default_tag: "test") do
         d.feed(event_time, record)
+        d.feed(event_time, valid_record)
       end
 
-      assert_equal([], client.api_requests.map {|r| r[:operation_name] })
+      requests = client.api_requests
+      groups = requests.map {|r| r[:params][:log_group_name] || r[:params][:log_group_name_prefix] }
+      assert_equal(["valid_group"], groups.uniq)
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal([["valid_group", "valid_stream"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      events = put_requests.flat_map {|r| r[:params][:log_events] }
+      assert_equal([valid_record], events.map {|event| JSON.parse(event[:message]) })
       assert(d.logs.any? {|log| log =~ warning })
     end
   end
