@@ -189,8 +189,8 @@ module Fluent::Plugin
     def write(chunk)
       log_group_name = extract_placeholders(@log_group_name, chunk) if @log_group_name
       log_stream_name = extract_placeholders(@log_stream_name, chunk) if @log_stream_name
-      aws_tags = @log_group_aws_tags.each {|k, v|
-        @log_group_aws_tags[extract_placeholders(k, chunk)] = extract_placeholders(v, chunk)
+      aws_tags = @log_group_aws_tags.each_with_object({}) {|(k, v), tags|
+        tags[extract_placeholders(k, chunk)] = extract_placeholders(v, chunk)
       } if @log_group_aws_tags
 
       queue = Thread::Queue.new

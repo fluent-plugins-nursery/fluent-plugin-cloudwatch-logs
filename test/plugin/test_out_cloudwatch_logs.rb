@@ -1073,6 +1073,49 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "log_group_aws_tags with placeholders" do
+    def stubbed_client
+      Aws::CloudWatchLogs::Client.new(
+        stub_responses: true,
+        region: "us-east-1",
+        credentials: Aws::Credentials.new("test_id", "test_key"),
+      )
+    end
+
+    def run_with_tags(tags)
+      client = stubbed_client
+      conf = Fluent::Config::Element.new('ROOT', '', {
+        "@type" => "cloudwatch_logs",
+        "region" => "us-east-1",
+        "aws_key_id" => "test_id",
+        "aws_sec_key" => "test_key",
+        "auto_create_stream" => true,
+        "log_group_name" => "group-${tag}",
+        "log_stream_name" => "stream",
+        "log_group_aws_tags" => tags,
+      }, [Fluent::Config::Element.new('buffer', 'tag', {'@type' => 'memory'}, [])])
+      d = create_driver(conf)
+      d.instance.instance_variable_set(:@logs, client)
+      d.run do
+        d.feed("app1", event_time, {"message" => "message1"})
+        d.feed("app2", event_time, {"message" => "message2"})
+      end
+      client.api_requests.select {|r| r[:operation_name] == :create_log_group }.map {|r|
+        [r[:params][:log_group_name], r[:params][:tags]]
+      }.sort_by(&:first)
+    end
+
+    def test_values_are_resolved_for_every_chunk
+      created = run_with_tags('{"app": "${tag}"}')
+      assert_equal([["group-app1", {"app" => "app1"}], ["group-app2", {"app" => "app2"}]], created)
+    end
+
+    def test_keys_are_resolved_for_every_chunk
+      created = run_with_tags('{"${tag}": "true"}')
+      assert_equal([["group-app1", {"app1" => "true"}], ["group-app2", {"app2" => "true"}]], created)
+    end
+  end
+
   private
   def default_config
     <<-EOC
