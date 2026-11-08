@@ -222,7 +222,7 @@ module Fluent::Plugin
               metadata = if @include_metadata
                            {
                              "log_stream_name" => @log_stream_name,
-                             "log_group_name" => @log_group_name
+                             "log_group_name" => log_group_name
                            }
                          else
                            {}

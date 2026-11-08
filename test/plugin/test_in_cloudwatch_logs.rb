@@ -633,6 +633,34 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", (time_ms / 1000), { "cloudwatch" => "logs2" }], events[1])
     end
 
+    test "emit with metadata of the matched log group when use_log_group_name_prefix is true" do
+      time_ms = (Time.now.to_f * 1000).floor
+      log_group = Aws::CloudWatchLogs::Types::LogGroup.new(log_group_name: "app-prod")
+      @client.stub_responses(:describe_log_groups, { log_groups: [log_group], next_token: nil })
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: { cloudwatch: "logs1" }.to_json, ingestion_time: time_ms),
+      ]
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver(<<-EOC)
+        tag test
+        @type cloudwatch_logs
+        log_group_name app-
+        use_log_group_name_prefix true
+        log_stream_name stream_name
+        include_metadata true
+        fetch_interval 1
+        region us-east-1
+      EOC
+      d.run(expect_emits: 1, timeout: 5)
+
+      expected_record = {
+        "cloudwatch" => "logs1",
+        "metadata" => { "log_stream_name" => "stream_name", "log_group_name" => "app-prod" },
+      }
+      assert_equal(["test", (time_ms / 1000), expected_record], d.events[0])
+    end
+
     test "emit with aws_timestamp" do
       time_ms = (Time.now.to_f * 1000).floor
       log_time_ms = time_ms - 10000
