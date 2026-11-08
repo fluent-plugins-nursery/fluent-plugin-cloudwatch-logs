@@ -40,6 +40,25 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal(:json, d.instance.json_handler)
       assert_equal(["fluentd","aws","cloudwatch"], d.instance.message_keys)
     end
+
+    data("log_group_aws_tags and log_group_aws_tags_key",
+         ["log_group_aws_tags {\"tag1\": \"value1\"}\nlog_group_aws_tags_key aws_tags",
+          "Set only one of log_group_aws_tags, log_group_aws_tags_key"])
+    data("retention_in_days and retention_in_days_key",
+         ["retention_in_days 7\nretention_in_days_key retention",
+          "Set only one of retention_in_days, retention_in_days_key"])
+    def test_configure_exclusive_parameters(data)
+      params, message = data
+      assert_raise(Fluent::ConfigError.new(message)) do
+        create_driver(<<-EOC)
+          @type cloudwatch_logs
+          region us-east-1
+          log_group_name test_group
+          log_stream_name test_stream
+          #{params}
+        EOC
+      end
+    end
   end
 
   sub_test_case "real world" do

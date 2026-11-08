@@ -89,11 +89,11 @@ module Fluent::Plugin
       end
 
       if [conf['log_group_aws_tags'], conf['log_group_aws_tags_key']].compact.size > 1
-        raise ConfigError, "Set only one of log_group_aws_tags, log_group_aws_tags_key"
+        raise Fluent::ConfigError, "Set only one of log_group_aws_tags, log_group_aws_tags_key"
       end
 
       if [conf['retention_in_days'], conf['retention_in_days_key']].compact.size > 1
-        raise ConfigError, "Set only one of retention_in_days, retention_in_days_key"
+        raise Fluent::ConfigError, "Set only one of retention_in_days, retention_in_days_key"
       end
 
       formatter_conf = conf.elements('format').first
