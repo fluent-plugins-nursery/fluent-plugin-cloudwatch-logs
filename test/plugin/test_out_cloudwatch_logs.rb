@@ -1110,6 +1110,20 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     assert_true(split_character_message.valid_encoding?)
   end
 
+  def test_truncate_message_keeps_messages_within_limit_untouched
+    d = create_driver(<<-EOC)
+      #{default_config}
+      max_message_length 4
+      log_group_name #{log_group_name}
+      log_stream_name #{log_stream_name}
+    EOC
+
+    message = "a\xFFb".dup.force_encoding("UTF-8")
+
+    assert_same(message, d.instance.send(:truncate_message, message))
+    assert_false(message.valid_encoding?)
+  end
+
   private
   def default_config
     <<-EOC

@@ -203,7 +203,7 @@ Fetch sample log from CloudWatch Logs:
 * `log_stream_name`: name of log stream to store logs
 * `log_stream_name_key`: use specified field of records as log stream name
 * `max_events_per_batch`: maximum number of events to send at once (default 10000)
-* `max_message_length`: maximum length of the message
+* `max_message_length`: maximum length of the message in UTF-8 bytes (a multibyte character split at the boundary is dropped)
 * `message_keys`: keys to send messages as events
 * `put_log_events_disable_retry_limit`: if true, `put_log_events_retry_limit` will be ignored
 * `put_log_events_retry_limit`: maximum count of retry (if exceeding this, the events will be discarded)

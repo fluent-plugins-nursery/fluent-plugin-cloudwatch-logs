@@ -350,6 +350,7 @@ module Fluent::Plugin
 
     def truncate_message(message)
       return message unless @max_message_length
+      return message if message.bytesize <= @max_message_length
 
       message.byteslice(0, @max_message_length).scrub("")
     end
