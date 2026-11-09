@@ -189,9 +189,6 @@ module Fluent::Plugin
     def write(chunk)
       log_group_name = extract_placeholders(@log_group_name, chunk) if @log_group_name
       log_stream_name = extract_placeholders(@log_stream_name, chunk) if @log_stream_name
-      aws_tags = @log_group_aws_tags.each_with_object({}) {|(k, v), tags|
-        tags[extract_placeholders(k, chunk)] = extract_placeholders(v, chunk)
-      } if @log_group_aws_tags
 
       queue = Thread::Queue.new
 
@@ -254,7 +251,9 @@ module Fluent::Plugin
           #as we create log group only once, values from first record will persist
           record = rs[0][2]
 
-          awstags = aws_tags
+          awstags = @log_group_aws_tags&.each_with_object({}) {|(k, v), tags|
+            tags[extract_placeholders(k, chunk)] = extract_placeholders(v, chunk)
+          } if @auto_create_stream
           unless @log_group_aws_tags_key.nil?
             if @remove_log_group_aws_tags_key
               awstags = record.delete(@log_group_aws_tags_key)
