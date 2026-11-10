@@ -245,6 +245,11 @@ module Fluent::Plugin
           next
         end
 
+        unless group_name.is_a?(String) && stream_name.is_a?(String)
+          log.warn "group_name and stream_name must be strings (group_name=#{group_name.inspect}, stream_name=#{stream_name.inspect})"
+          next
+        end
+
         unless log_group_exists?(group_name)
           #rs = [[name, timestamp, record],[name,timestamp,record]]
           #get tags and retention from first record

@@ -1062,6 +1062,9 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     data("empty stream", [{"stream" => "", "group" => "test_group", "message" => "message1"}, /stream_name is empty \(group_name=test_group\)/])
     data("empty group", [{"stream" => "test_stream", "group" => "", "message" => "message1"}, /group_name is nil or empty \(stream_name=test_stream\)/])
     data("missing group", [{"stream" => "test_stream", "message" => "message1"}, /group_name is nil or empty \(stream_name=test_stream\)/])
+    data("integer group", [{"stream" => "test_stream", "group" => 123, "message" => "message1"}, /group_name and stream_name must be strings \(group_name=123, stream_name="test_stream"\)/])
+    data("integer stream", [{"stream" => 456, "group" => "test_group", "message" => "message1"}, /group_name and stream_name must be strings \(group_name="test_group", stream_name=456\)/])
+    data("hash group", [{"stream" => "test_stream", "group" => {"name" => "x"}, "message" => "message1"}, /group_name and stream_name must be strings/])
     def test_skip_records_without_usable_names(data)
       record, warning = data
       client = stubbed_client
