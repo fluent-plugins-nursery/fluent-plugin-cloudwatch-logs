@@ -1134,6 +1134,12 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal([["group-app1", {"app1" => "true"}], ["group-app2", {"app2" => "true"}]], created)
     end
 
+    def test_non_string_values_are_sent_as_strings
+      created = run_with_tags('{"cost": 100, "enabled": true, "ratio": 0.5}')
+      tags = {"cost" => "100", "enabled" => "true", "ratio" => "0.5"}
+      assert_equal([["group-app1", tags], ["group-app2", tags]], created)
+    end
+
     def test_tags_are_not_resolved_for_an_existing_group
       client = stubbed_client
       client.stub_responses(:describe_log_groups, ->(context) {
