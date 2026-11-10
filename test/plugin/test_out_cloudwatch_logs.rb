@@ -1092,6 +1092,102 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "log_group_aws_tags with placeholders" do
+    def stubbed_client
+      Aws::CloudWatchLogs::Client.new(
+        stub_responses: true,
+        region: "us-east-1",
+        credentials: Aws::Credentials.new("test_id", "test_key"),
+      )
+    end
+
+    def run_with_tags(tags)
+      client = stubbed_client
+      conf = Fluent::Config::Element.new('ROOT', '', {
+        "@type" => "cloudwatch_logs",
+        "region" => "us-east-1",
+        "aws_key_id" => "test_id",
+        "aws_sec_key" => "test_key",
+        "auto_create_stream" => true,
+        "log_group_name" => "group-${tag}",
+        "log_stream_name" => "stream",
+        "log_group_aws_tags" => tags,
+      }, [Fluent::Config::Element.new('buffer', 'tag', {'@type' => 'memory'}, [])])
+      d = create_driver(conf)
+      d.instance.instance_variable_set(:@logs, client)
+      d.run do
+        d.feed("app1", event_time, {"message" => "message1"})
+        d.feed("app2", event_time, {"message" => "message2"})
+      end
+      client.api_requests.select {|r| r[:operation_name] == :create_log_group }.map {|r|
+        [r[:params][:log_group_name], r[:params][:tags]]
+      }.sort_by(&:first)
+    end
+
+    def test_values_are_resolved_for_every_chunk
+      created = run_with_tags('{"app": "${tag}"}')
+      assert_equal([["group-app1", {"app" => "app1"}], ["group-app2", {"app" => "app2"}]], created)
+    end
+
+    def test_keys_are_resolved_for_every_chunk
+      created = run_with_tags('{"${tag}": "true"}')
+      assert_equal([["group-app1", {"app1" => "true"}], ["group-app2", {"app2" => "true"}]], created)
+    end
+
+    def test_tags_are_not_resolved_for_an_existing_group
+      client = stubbed_client
+      client.stub_responses(:describe_log_groups, ->(context) {
+        {log_groups: [{log_group_name: context.params[:log_group_name_prefix]}]}
+      })
+      conf = Fluent::Config::Element.new('ROOT', '', {
+        "@type" => "cloudwatch_logs",
+        "region" => "us-east-1",
+        "aws_key_id" => "test_id",
+        "aws_sec_key" => "test_key",
+        "auto_create_stream" => true,
+        "log_group_name_key" => "group",
+        "log_stream_name" => "stream",
+        "log_group_aws_tags" => '{"LogGroup": "${group}"}',
+      }, [Fluent::Config::Element.new('buffer', 'group', {'@type' => 'memory'}, [])])
+      d = create_driver(conf)
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: "test") do
+        d.feed(event_time, {"group" => "/aws/lambda/foo", "message" => "message1"})
+      end
+      put_requests = client.api_requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal(["/aws/lambda/foo"], put_requests.map {|r| r[:params][:log_group_name] })
+    end
+
+    def test_tags_are_not_resolved_when_auto_create_stream_is_false
+      client = stubbed_client
+      client.stub_responses(:describe_log_groups, ->(context) {
+        name = context.params[:log_group_name_prefix]
+        {log_groups: name == "present" ? [{log_group_name: name}] : []}
+      })
+      client.stub_responses(:describe_log_streams, ->(context) {
+        {log_streams: [{log_stream_name: context.params[:log_stream_name_prefix]}]}
+      })
+      conf = Fluent::Config::Element.new('ROOT', '', {
+        "@type" => "cloudwatch_logs",
+        "region" => "us-east-1",
+        "aws_key_id" => "test_id",
+        "aws_sec_key" => "test_key",
+        "auto_create_stream" => false,
+        "log_group_name_key" => "group",
+        "log_stream_name" => "stream",
+        "log_group_aws_tags" => '{"Source": "${source}"}',
+      }, [Fluent::Config::Element.new('buffer', 'source', {'@type' => 'memory'}, [])])
+      d = create_driver(conf)
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: "test") do
+        d.feed(event_time, {"group" => "missing", "source" => "/path", "message" => "message1"})
+        d.feed(event_time, {"group" => "present", "source" => "/path", "message" => "message2"})
+      end
+      put_requests = client.api_requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal(["present"], put_requests.map {|r| r[:params][:log_group_name] })
+    end
+  end
+
   private
   def default_config
     <<-EOC
