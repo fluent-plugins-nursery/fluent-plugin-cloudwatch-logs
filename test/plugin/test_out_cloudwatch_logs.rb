@@ -1233,7 +1233,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       retentions, puts, logs = run_with_retention(value)
       assert_equal([], retentions)
       assert_equal(1, puts)
-      assert(logs.any? {|log| log.include?("failed to set retention policy for Log group 'test_group'") && log.include?("retention_in_days") })
+      assert(logs.any? {|log| log.include?("failed to set retention policy for Log group 'test_group'") && log.include?("(retention_in_days=#{value.inspect})") })
     end
   end
 
