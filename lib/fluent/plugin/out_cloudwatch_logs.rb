@@ -96,6 +96,10 @@ module Fluent::Plugin
         raise Fluent::ConfigError, "Set only one of retention_in_days, retention_in_days_key"
       end
 
+      # A JSON number or boolean in log_group_aws_tags stays a non-String, but
+      # extract_placeholders and the CreateLogGroup tags only accept Strings.
+      @log_group_aws_tags = @log_group_aws_tags&.to_h {|k, v| [k.to_s, v.to_s] }
+
       formatter_conf = conf.elements('format').first
       @formatter_proc = unless formatter_conf
                           unless @message_keys.empty?
