@@ -226,6 +226,9 @@ module Fluent::Plugin
                    log_stream_name
                  end
 
+        group = group.to_s if group.is_a?(Integer)
+        stream = stream.to_s if stream.is_a?(Integer)
+
         [group, stream]
       }.each {|group_stream, rs|
         group_name, stream_name = group_stream
