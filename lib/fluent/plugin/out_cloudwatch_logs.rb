@@ -230,6 +230,9 @@ module Fluent::Plugin
                    log_stream_name
                  end
 
+        group = group.to_s if group.is_a?(Integer)
+        stream = stream.to_s if stream.is_a?(Integer)
+
         [group, stream]
       }.each {|group_stream, rs|
         group_name, stream_name = group_stream
@@ -246,6 +249,11 @@ module Fluent::Plugin
 
         if group_name.nil? || group_name.to_s.empty?
           log.warn "group_name is nil or empty (stream_name=#{stream_name})"
+          next
+        end
+
+        unless group_name.is_a?(String) && stream_name.is_a?(String)
+          log.warn "group_name and stream_name must be strings (group_name=#{group_name.inspect}, stream_name=#{stream_name.inspect})"
           next
         end
 
