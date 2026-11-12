@@ -1194,6 +1194,55 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "retention_in_days_key" do
+    def run_with_retention(value)
+      client = Aws::CloudWatchLogs::Client.new(
+        stub_responses: true,
+        region: "us-east-1",
+        credentials: Aws::Credentials.new("test_id", "test_key"),
+      )
+      d = create_driver(<<-EOC)
+        @type cloudwatch_logs
+        region us-east-1
+        aws_key_id test_id
+        aws_sec_key test_key
+        auto_create_stream true
+        log_group_name test_group
+        log_stream_name test_stream
+        retention_in_days_key retention
+      EOC
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: "test") do
+        d.feed(event_time, {"retention" => value, "message" => "message1"})
+      end
+      requests = client.api_requests
+      [
+        requests.select {|r| r[:operation_name] == :put_retention_policy }.map {|r| r[:params][:retention_in_days] },
+        requests.count {|r| r[:operation_name] == :put_log_events },
+        d.logs,
+      ]
+    end
+
+    data("integer", [7, [7]])
+    data("string", ["7", [7]])
+    def test_retention_is_sent_as_integer(data)
+      value, expected = data
+      retentions, puts, _ = run_with_retention(value)
+      assert_equal(expected, retentions)
+      assert_equal(1, puts)
+    end
+
+    data("not a number", "a week")
+    data("float string", "7.5")
+    data("hash", {"days" => 7})
+    def test_invalid_retention_is_skipped(value)
+      retentions, puts, logs = run_with_retention(value)
+      assert_equal([], retentions)
+      assert_equal(1, puts)
+      assert(logs.any? {|log| log.include?("failed to set retention policy for Log group 'test_group'") && log.include?("(retention_in_days=#{value.inspect})") })
+    end
+  end
+
   private
   def default_config
     <<-EOC

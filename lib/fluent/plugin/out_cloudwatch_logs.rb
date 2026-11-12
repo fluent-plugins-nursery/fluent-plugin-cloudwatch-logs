@@ -522,6 +522,10 @@ module Fluent::Plugin
         })
       rescue Aws::CloudWatchLogs::Errors::InvalidParameterException => error
         log.warn "failed to set retention policy for Log group '#{group_name}' with error #{error.backtrace}"
+      rescue ArgumentError => error
+        # ArgumentError comes from the SDK parameter validation, e.g. a
+        # retention_in_days_key value that is not a number.
+        log.warn "failed to set retention policy for Log group '#{group_name}' with error #{error.message} (retention_in_days=#{retention_in_days.inspect})"
       end
     end
 
