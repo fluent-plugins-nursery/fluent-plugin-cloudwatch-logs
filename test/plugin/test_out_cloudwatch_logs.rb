@@ -1194,6 +1194,52 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "placeholder values that look like paths" do
+    def run_with(params, buffer_keys, records)
+      client = Aws::CloudWatchLogs::Client.new(
+        stub_responses: true,
+        region: "us-east-1",
+        credentials: Aws::Credentials.new("test_id", "test_key"),
+      )
+      conf = Fluent::Config::Element.new('ROOT', '', {
+        "@type" => "cloudwatch_logs",
+        "region" => "us-east-1",
+        "aws_key_id" => "test_id",
+        "aws_sec_key" => "test_key",
+        "auto_create_stream" => true,
+      }.merge(params), [Fluent::Config::Element.new('buffer', buffer_keys, {'@type' => 'memory', 'timekey' => 3600}, [])])
+      d = create_driver(conf)
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: "test") do
+        records.each {|record| d.feed(event_time, record) }
+      end
+      [client.api_requests, d.logs]
+    end
+
+    def test_log_group_and_stream_names
+      requests, logs = run_with({"log_group_name" => "${group}", "log_stream_name" => "${stream}"}, "group,stream",
+                                [{"group" => "/aws/lambda/foo", "stream" => "/var/log/app.log", "message" => "message1"}])
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal([["/aws/lambda/foo", "/var/log/app.log"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      assert_false(logs.any? {|log| log.include?("Invalid path component") })
+    end
+
+    def test_with_tag_and_time_placeholders
+      requests, _logs = run_with({"log_group_name" => "${group}/${tag}", "log_stream_name" => "%Y-${stream}"}, "tag,time,group,stream",
+                                 [{"group" => "/aws/lambda/foo", "stream" => "../app", "message" => "message1"}])
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      year = Time.at(event_time.to_i).year
+      assert_equal([["/aws/lambda/foo/test", "#{year}-../app"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+    end
+
+    def test_log_group_aws_tags_value_with_slash
+      requests, _logs = run_with({"log_group_name_key" => "group", "log_stream_name" => "stream", "log_group_aws_tags" => '{"LogGroup": "${group}"}'}, "group",
+                                 [{"group" => "/aws/lambda/foo", "message" => "message1"}])
+      created = requests.select {|r| r[:operation_name] == :create_log_group }
+      assert_equal([["/aws/lambda/foo", {"LogGroup" => "/aws/lambda/foo"}]], created.map {|r| r[:params].values_at(:log_group_name, :tags) })
+    end
+  end
+
   sub_test_case "retention_in_days_key" do
     def run_with_retention(value)
       client = Aws::CloudWatchLogs::Client.new(

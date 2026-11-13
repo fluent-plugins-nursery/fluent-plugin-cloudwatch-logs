@@ -191,8 +191,8 @@ module Fluent::Plugin
     end
 
     def write(chunk)
-      log_group_name = extract_placeholders(@log_group_name, chunk) if @log_group_name
-      log_stream_name = extract_placeholders(@log_stream_name, chunk) if @log_stream_name
+      log_group_name = extract_name_placeholders(@log_group_name, chunk) if @log_group_name
+      log_stream_name = extract_name_placeholders(@log_stream_name, chunk) if @log_stream_name
 
       queue = Thread::Queue.new
 
@@ -256,7 +256,7 @@ module Fluent::Plugin
           record = rs[0][2]
 
           awstags = @log_group_aws_tags&.each_with_object({}) {|(k, v), tags|
-            tags[extract_placeholders(k, chunk)] = extract_placeholders(v, chunk)
+            tags[extract_name_placeholders(k, chunk)] = extract_name_placeholders(v, chunk)
           } if @auto_create_stream
           unless @log_group_aws_tags_key.nil?
             if @remove_log_group_aws_tags_key
@@ -342,6 +342,28 @@ module Fluent::Plugin
     end
 
     private
+
+    NAME_PLACEHOLDER_TOKEN_PATTERN = /__cloudwatch_logs_chunk_key_(\d+)__/
+
+    # Since Fluentd 1.19.3, extract_placeholders raises UnrecoverableError
+    # when a chunk key value looks like an absolute or parent file path, such
+    # as "/aws/lambda/foo". That check is for file outputs: log group and
+    # stream names often start with "/". So the chunk key values are put in
+    # after extract_placeholders, and only ${tag}, ${chunk_id} and the time
+    # format are left to it.
+    def extract_name_placeholders(str, chunk)
+      variables = chunk.metadata.variables
+      return extract_placeholders(str, chunk) if variables.nil? || variables.empty?
+
+      values = []
+      template = str.gsub(CHUNK_KEY_PLACEHOLDER_PATTERN) do |matched|
+        key = $1.to_sym
+        next matched unless variables.key?(key)
+        values << variables[key].to_s
+        "__cloudwatch_logs_chunk_key_#{values.size - 1}__"
+      end
+      extract_placeholders(template, chunk).gsub(NAME_PLACEHOLDER_TOKEN_PATTERN) { values[$1.to_i] }
+    end
 
     def drop_empty_record(record)
       new_record = record.dup
