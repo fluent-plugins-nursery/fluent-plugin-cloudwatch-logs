@@ -661,6 +661,36 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", (time_ms / 1000), expected_record], d.events[0])
     end
 
+    data("plain", "")
+    data("add_log_group_name", "add_log_group_name true")
+    data("include_metadata", "include_metadata true")
+    test "skip a message that the parser cannot parse" do |option|
+      time_ms = (Time.now.to_f * 1000).floor
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "not matching"),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "level=info msg=ok"),
+      ]
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver(<<-EOC)
+        tag test
+        @type cloudwatch_logs
+        log_group_name group
+        log_stream_name stream
+        fetch_interval 1
+        region us-east-1
+        #{option}
+        <parse>
+          @type regexp
+          expression /^level=(?<level>\\w+) msg=(?<msg>.*)$/
+        </parse>
+      EOC
+      d.run(expect_emits: 1, timeout: 5)
+
+      assert_equal([["test", {"level" => "info", "msg" => "ok"}]], d.events.first(1).map {|tag, _time, record| [tag, record.slice("level", "msg")] })
+      assert_equal(["test", (time_ms / 1000).floor, {message: "not matching"}], d.error_events.first.first(3))
+    end
+
     test "emit with aws_timestamp" do
       time_ms = (Time.now.to_f * 1000).floor
       log_time_ms = time_ms - 10000
