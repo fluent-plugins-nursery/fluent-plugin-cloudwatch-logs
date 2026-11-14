@@ -343,7 +343,10 @@ module Fluent::Plugin
 
     private
 
-    NAME_PLACEHOLDER_TOKEN_PATTERN = /__cloudwatch_logs_chunk_key_(\d+)__/
+    # The token starts with "$", so a "%" right before a placeholder stays an
+    # unknown strftime directive, as it does with "${".
+    NAME_PLACEHOLDER_TOKEN = "$__cloudwatch_logs_chunk_key_%d__"
+    NAME_PLACEHOLDER_TOKEN_PATTERN = Regexp.new(Regexp.escape(NAME_PLACEHOLDER_TOKEN).sub("%d") { '(\d+)' })
 
     # Since Fluentd 1.19.3, extract_placeholders raises UnrecoverableError
     # when a chunk key value looks like an absolute or parent file path, such
@@ -357,10 +360,14 @@ module Fluent::Plugin
 
       values = []
       template = str.gsub(CHUNK_KEY_PLACEHOLDER_PATTERN) do |matched|
-        key = $1.to_sym
-        next matched unless variables.key?(key)
-        values << variables[key].to_s
-        "__cloudwatch_logs_chunk_key_#{values.size - 1}__"
+        key = $1
+        next matched if key == "tag" || key == "chunk_id"
+        unless @chunk_keys.include?(key)
+          log.warn "chunk key placeholder '#{key}' not replaced. template:#{str}"
+          next ""
+        end
+        values << variables[key.to_sym].to_s
+        NAME_PLACEHOLDER_TOKEN % (values.size - 1)
       end
       extract_placeholders(template, chunk).gsub(NAME_PLACEHOLDER_TOKEN_PATTERN) { values[$1.to_i] }
     end

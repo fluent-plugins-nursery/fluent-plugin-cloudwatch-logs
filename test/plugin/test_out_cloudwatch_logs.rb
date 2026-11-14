@@ -1157,6 +1157,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       }, [Fluent::Config::Element.new('buffer', 'group', {'@type' => 'memory'}, [])])
       d = create_driver(conf)
       d.instance.instance_variable_set(:@logs, client)
+      stub.proxy(d.instance).extract_name_placeholders
+      dont_allow(d.instance).extract_name_placeholders("${group}", anything)
       d.run(default_tag: "test") do
         d.feed(event_time, {"group" => "/aws/lambda/foo", "message" => "message1"})
       end
@@ -1185,6 +1187,8 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       }, [Fluent::Config::Element.new('buffer', 'source', {'@type' => 'memory'}, [])])
       d = create_driver(conf)
       d.instance.instance_variable_set(:@logs, client)
+      stub.proxy(d.instance).extract_name_placeholders
+      dont_allow(d.instance).extract_name_placeholders("${source}", anything)
       d.run(default_tag: "test") do
         d.feed(event_time, {"group" => "missing", "source" => "/path", "message" => "message1"})
         d.feed(event_time, {"group" => "present", "source" => "/path", "message" => "message2"})
@@ -1211,7 +1215,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       d = create_driver(conf)
       d.instance.instance_variable_set(:@logs, client)
       d.run(default_tag: "test") do
-        records.each {|record| d.feed(event_time, record) }
+        records.each {|record| d.feed(event_time("2026-06-01 12:00:00 UTC"), record) }
       end
       [client.api_requests, d.logs]
     end
@@ -1228,8 +1232,38 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       requests, _logs = run_with({"log_group_name" => "${group}/${tag}", "log_stream_name" => "%Y-${stream}"}, "tag,time,group,stream",
                                  [{"group" => "/aws/lambda/foo", "stream" => "../app", "message" => "message1"}])
       put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
-      year = Time.at(event_time.to_i).year
-      assert_equal([["/aws/lambda/foo/test", "#{year}-../app"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      assert_equal([["/aws/lambda/foo/test", "2026-../app"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+    end
+
+    data("%" => ["100%${stream}", "abc", "100%abc"],
+         "%-" => ["100%-${stream}", "abc", "100%-abc"],
+         "%0" => ["100%0${stream}", "abc", "100%0abc"],
+         "% in the value" => ["${stream}", "100%c", "100%c"])
+    def test_percent_before_a_placeholder_with_time_key(data)
+      template, stream, expected = data
+      requests, _logs = run_with({"log_group_name" => "g", "log_stream_name" => template}, "time,stream",
+                                 [{"stream" => stream, "message" => "message1"}])
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal([expected], put_requests.map {|r| r[:params][:log_stream_name] })
+    end
+
+    data("with the field" => {"chunk_id" => "from-record", "message" => "message1"},
+         "without the field" => {"message" => "message1"})
+    def test_chunk_id_chunk_key_is_the_unique_id(record)
+      requests, _logs = run_with({"log_group_name" => "g", "log_stream_name" => "s-${chunk_id}"}, "chunk_id", [record])
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      names = put_requests.map {|r| r[:params][:log_stream_name] }
+      assert_equal(1, names.size)
+      assert_match(/\As-\h{32}\z/, names.first)
+    end
+
+    def test_unknown_placeholder_warning_shows_the_configured_template
+      requests, logs = run_with({"log_group_name" => "${group}${unknown}", "log_stream_name" => "s"}, "group",
+                                [{"group" => "/aws/lambda/foo", "message" => "message1"}])
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal(["/aws/lambda/foo"], put_requests.map {|r| r[:params][:log_group_name] })
+      assert_true(logs.any? {|log| log.include?("chunk key placeholder 'unknown' not replaced. template:${group}${unknown}") })
+      assert_false(logs.any? {|log| log.include?("cloudwatch_logs_chunk_key") })
     end
 
     def test_log_group_aws_tags_value_with_slash
