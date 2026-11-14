@@ -255,6 +255,13 @@ module Fluent::Plugin
         time = (event.timestamp / 1000).floor
         begin
           record = JSON.parse(event.message, allow_duplicate_key: true)
+          # A JSON value such as null, 42 or [1,2] is valid JSON but not a
+          # record, so handle it like invalid JSON.
+          unless record.is_a?(Hash)
+            log.error "event.message is not a JSON object"
+            router.emit_error_event(@tag, time, { message: event.message }, TypeError.new("event.message is not a JSON object: #{record.class}"))
+            return
+          end
           if @add_log_group_name
             record[@log_group_name_key] = group
           end

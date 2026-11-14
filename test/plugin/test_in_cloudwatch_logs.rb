@@ -633,6 +633,26 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", (time_ms / 1000), { "cloudwatch" => "logs2" }], events[1])
     end
 
+    data("plain", "")
+    data("add_log_group_name", "add_log_group_name true")
+    data("include_metadata", "include_metadata true")
+    test "send a JSON message that is not an object to the error stream" do |option|
+      time_ms = (Time.now.to_f * 1000).floor
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      @client.stub_responses(:describe_log_streams, { log_streams: [log_stream], next_token: nil })
+      messages = ["null", "42", "[1,2]", '"text"', { cloudwatch: "logs1" }.to_json]
+      cloudwatch_logs_events = messages.map do |message|
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: message, ingestion_time: time_ms)
+      end
+      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+
+      d = create_driver(default_config + option)
+      d.run(expect_emits: 1, timeout: 5)
+
+      assert_equal([["test", (time_ms / 1000), "logs1"]], d.events.map {|tag, time, record| [tag, time, record["cloudwatch"]] })
+      assert_equal(["null", "42", "[1,2]", '"text"'], d.error_events.map {|_tag, _time, record| record[:message] })
+    end
+
     test "emit with metadata of the matched log group when use_log_group_name_prefix is true" do
       time_ms = (Time.now.to_f * 1000).floor
       log_group = Aws::CloudWatchLogs::Types::LogGroup.new(log_group_name: "app-prod")
