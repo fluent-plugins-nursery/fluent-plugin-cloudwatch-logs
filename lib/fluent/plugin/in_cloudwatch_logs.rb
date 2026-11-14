@@ -240,6 +240,9 @@ module Fluent::Plugin
     def emit(group, stream, event, metadata)
       if @parser
         @parser.parse(event.message) {|time,record|
+          # The parser yields nil when the message does not match, for
+          # example a regexp that does not match the line.
+          next if record.nil?
           if @use_aws_timestamp
             time = (event.timestamp / 1000).floor
           end
