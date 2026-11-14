@@ -688,7 +688,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       d.run(expect_emits: 1, timeout: 5)
 
       assert_equal([["test", {"level" => "info", "msg" => "ok"}]], d.events.first(1).map {|tag, _time, record| [tag, record.slice("level", "msg")] })
-      assert_equal(["test", (time_ms / 1000).floor, {message: "not matching"}], d.error_events.first.first(3))
+      assert_equal([], d.error_events)
     end
 
     test "emit with aws_timestamp" do

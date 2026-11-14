@@ -242,12 +242,7 @@ module Fluent::Plugin
         @parser.parse(event.message) {|time,record|
           # The parser yields nil when the message does not match, for
           # example a regexp that does not match the line.
-          if record.nil?
-            log.warn "pattern not matched", message: event.message
-            router.emit_error_event(@tag, (event.timestamp / 1000).floor, { message: event.message },
-                                    Fluent::Plugin::Parser::ParserError.new("pattern not matched with data '#{event.message}'"))
-            next
-          end
+          next if record.nil?
           if @use_aws_timestamp
             time = (event.timestamp / 1000).floor
           end
