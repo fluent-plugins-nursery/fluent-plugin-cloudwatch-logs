@@ -644,13 +644,16 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       cloudwatch_logs_events = messages.map do |message|
         Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: message, ingestion_time: time_ms)
       end
-      @client.stub_responses(:get_log_events, { events: cloudwatch_logs_events, next_forward_token: nil })
+      @client.stub_responses(:get_log_events, [
+        { events: cloudwatch_logs_events, next_forward_token: nil },
+        { events: [], next_forward_token: nil }
+      ])
 
       d = create_driver(default_config + option)
       d.run(expect_emits: 1, timeout: 5)
 
       assert_equal([["test", (time_ms / 1000), "logs1"]], d.events.map {|tag, time, record| [tag, time, record["cloudwatch"]] })
-      assert_equal(["null", "42", "[1,2]", '"text"'], d.error_events.map {|_tag, _time, record| record[:message] })
+      assert_equal(["null", "42", "[1,2]", '"text"'], d.error_events.map {|_tag, _time, record| record["message"] })
     end
 
     test "emit with metadata of the matched log group when use_log_group_name_prefix is true" do

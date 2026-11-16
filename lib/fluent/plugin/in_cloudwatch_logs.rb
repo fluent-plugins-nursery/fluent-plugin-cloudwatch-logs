@@ -259,7 +259,7 @@ module Fluent::Plugin
           # record, so handle it like invalid JSON.
           unless record.is_a?(Hash)
             log.error "event.message is not a JSON object"
-            router.emit_error_event(@tag, time, { message: event.message }, TypeError.new("event.message is not a JSON object: #{record.class}"))
+            router.emit_error_event(@tag, time, { "message" => event.message }, TypeError.new("event.message is not a JSON object: #{record.class}"))
             return
           end
           if @add_log_group_name
