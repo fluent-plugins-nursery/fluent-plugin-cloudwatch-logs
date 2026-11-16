@@ -684,6 +684,37 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", (time_ms / 1000), expected_record], d.events[0])
     end
 
+    data("json", "")
+    data("parser", "<parse>\n@type json\n</parse>")
+    test "give each event its own metadata" do |parse|
+      time_ms = (Time.now.to_f * 1000).floor
+      cloudwatch_logs_events = (1..3).map do |i|
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: { n: i }.to_json, ingestion_time: time_ms)
+      end
+      @client.stub_responses(:get_log_events, [
+        { events: cloudwatch_logs_events, next_forward_token: nil },
+        { events: [], next_forward_token: nil }
+      ])
+
+      d = create_driver(<<-EOC)
+        tag test
+        @type cloudwatch_logs
+        log_group_name group
+        log_stream_name stream
+        include_metadata true
+        fetch_interval 1
+        region us-east-1
+        #{parse}
+      EOC
+      d.run(expect_emits: 1, timeout: 5)
+
+      records = d.events.map {|_tag, _time, record| record }
+      assert_equal(3, records.size)
+      # What a filter such as record_transformer does to one event
+      records[0]["metadata"].delete("log_stream_name")
+      assert_equal(["stream", "stream"], records[1..].map {|record| record["metadata"]["log_stream_name"] })
+    end
+
     data("plain", "")
     data("add_log_group_name", "add_log_group_name true")
     data("include_metadata", "include_metadata true")
