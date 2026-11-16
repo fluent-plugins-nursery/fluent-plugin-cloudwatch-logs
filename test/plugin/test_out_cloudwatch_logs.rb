@@ -1062,6 +1062,9 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     data("empty stream", [{"stream" => "", "group" => "test_group", "message" => "message1"}, /stream_name is empty \(group_name=test_group\)/])
     data("empty group", [{"stream" => "test_stream", "group" => "", "message" => "message1"}, /group_name is nil or empty \(stream_name=test_stream\)/])
     data("missing group", [{"stream" => "test_stream", "message" => "message1"}, /group_name is nil or empty \(stream_name=test_stream\)/])
+    data("float group", [{"stream" => "test_stream", "group" => 1.5, "message" => "message1"}, /group_name and stream_name must be strings \(group_name=1.5, stream_name="test_stream"\)/])
+    data("boolean stream", [{"stream" => true, "group" => "test_group", "message" => "message1"}, /group_name and stream_name must be strings \(group_name="test_group", stream_name=true\)/])
+    data("hash group", [{"stream" => "test_stream", "group" => {"name" => "x"}, "message" => "message1"}, /group_name and stream_name must be strings/])
     def test_skip_records_without_usable_names(data)
       record, warning = data
       client = stubbed_client
@@ -1089,6 +1092,34 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       events = put_requests.flat_map {|r| r[:params][:log_events] }
       assert_equal([valid_record], events.map {|event| JSON.parse(event[:message]) })
       assert(d.logs.any? {|log| log =~ warning })
+    end
+
+    data("integer group and stream", {"group" => 123, "stream" => 456})
+    data("integer group", {"group" => 123, "stream" => "456"})
+    data("integer stream", {"group" => "123", "stream" => 456})
+    def test_integer_names_are_converted_to_strings(names)
+      client = stubbed_client
+      d = create_driver(<<-EOC)
+        @type cloudwatch_logs
+        region us-east-1
+        aws_key_id test_id
+        aws_sec_key test_key
+        auto_create_stream true
+        log_group_name_key group
+        log_stream_name_key stream
+      EOC
+      d.instance.instance_variable_set(:@logs, client)
+      record = names.merge("message" => "message1")
+      string_record = {"group" => "123", "stream" => "456", "message" => "message2"}
+      d.run(default_tag: "test") do
+        d.feed(event_time, record)
+        d.feed(event_time, string_record)
+      end
+
+      put_requests = client.api_requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal([["123", "456"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      events = put_requests.flat_map {|r| r[:params][:log_events] }
+      assert_equal([record, string_record], events.map {|event| JSON.parse(event[:message]) })
     end
   end
 
