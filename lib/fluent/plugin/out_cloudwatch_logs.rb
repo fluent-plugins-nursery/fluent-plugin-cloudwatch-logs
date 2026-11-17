@@ -361,21 +361,19 @@ module Fluent::Plugin
       values = []
       template = str.gsub(CHUNK_KEY_PLACEHOLDER_PATTERN) do |matched|
         key = $1
-        next matched if key == "chunk_id" || (key == "tag" && @chunk_key_tag)
-        if key == "tag"
-          # Without tag in the chunk keys, Fluentd keeps ${tag} as it is and
-          # warns with the template it was given, which has the tokens. Keep
-          # it the same way here and warn with the configured template.
-          log.warn "chunk key placeholder 'tag' not replaced. template:#{str}"
-          values << matched
-          next NAME_PLACEHOLDER_TOKEN % (values.size - 1)
-        end
+        next matched if key == "tag" || key == "chunk_id"
         unless @chunk_keys.include?(key)
           log.warn "chunk key placeholder '#{key}' not replaced. template:#{str}"
           next ""
         end
         values << variables[key.to_sym].to_s
         NAME_PLACEHOLDER_TOKEN % (values.size - 1)
+      end
+      if !@chunk_key_tag && !values.empty? && template.include?("${tag}")
+        # Fluentd keeps ${tag} and warns once with the template it was given,
+        # which has the tokens. Keep it here and warn with the configured one.
+        log.warn "chunk key placeholder 'tag' not replaced. template:#{str}"
+        template = template.gsub("${tag}") { values << "${tag}"; NAME_PLACEHOLDER_TOKEN % (values.size - 1) }
       end
       extract_placeholders(template, chunk).gsub(NAME_PLACEHOLDER_TOKEN_PATTERN) { values[$1.to_i] }
     end
