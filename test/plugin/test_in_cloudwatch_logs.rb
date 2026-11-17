@@ -706,7 +706,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
         region us-east-1
         #{parse}
       EOC
-      d.run(expect_emits: 1, timeout: 5)
+      d.run(expect_emits: 3, timeout: 5)
 
       records = d.events.map {|_tag, _time, record| record }
       assert_equal(3, records.size)
