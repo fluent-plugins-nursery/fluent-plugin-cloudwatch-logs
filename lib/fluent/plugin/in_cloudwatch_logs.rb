@@ -250,7 +250,9 @@ module Fluent::Plugin
             record[@log_group_name_key] = group
           end
           unless metadata.empty?
-            record.merge!("metadata" => metadata)
+            # Each event gets its own copy, so that a filter changing the
+            # metadata of one event does not change the other events.
+            record.merge!("metadata" => metadata.dup)
           end
           router.emit(@tag, time, record)
         }
@@ -269,7 +271,9 @@ module Fluent::Plugin
             record[@log_group_name_key] = group
           end
           unless metadata.empty?
-            record.merge!("metadata" => metadata)
+            # Each event gets its own copy, so that a filter changing the
+            # metadata of one event does not change the other events.
+            record.merge!("metadata" => metadata.dup)
           end
           router.emit(@tag, time, record)
         rescue JSON::ParserError => error # Catch parser errors
