@@ -1266,6 +1266,32 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_false(logs.any? {|log| log.include?("cloudwatch_logs_chunk_key") })
     end
 
+    def test_tag_placeholder_without_tag_chunk_key_warns_with_the_configured_template
+      requests, logs = run_with({"log_group_name" => "${tag}-${group}", "log_stream_name" => "s"}, "group",
+                                [{"group" => "app", "message" => "message1"}])
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal(["${tag}-app"], put_requests.map {|r| r[:params][:log_group_name] })
+      warnings = logs.select {|log| log.include?("chunk key placeholder 'tag' not replaced") }
+      assert_true(warnings.any?, logs.join)
+      assert_true(warnings.all? {|log| log.include?("template:${tag}-${group}") }, warnings.join)
+      assert_false(logs.any? {|log| log.include?("cloudwatch_logs_chunk_key") }, logs.join)
+    end
+
+    def test_tag_placeholder_used_twice_warns_once
+      _requests, logs = run_with({"log_group_name" => "${tag}-${tag}-${group}", "log_stream_name" => "s"}, "group",
+                                 [{"group" => "app", "message" => "message1"}])
+      warnings = logs.select {|log| log.include?("chunk key placeholder 'tag' not replaced") }
+      assert_equal(1, warnings.size, logs.join)
+    end
+
+    def test_chunk_id_warning_with_tag_placeholder_shows_the_configured_template
+      _requests, logs = run_with({"log_group_name" => "g", "log_stream_name" => "${tag}-${chunk_id}-${chunk_id}"}, "group",
+                                 [{"group" => "app", "message" => "message1"}])
+      warnings = logs.select {|log| log.include?("chunk key placeholder 'chunk_id' not replaced") }
+      assert_true(warnings.any?, logs.join)
+      assert_true(warnings.all? {|log| log.include?("template:${tag}-${chunk_id}-${chunk_id}") }, warnings.join)
+    end
+
     def test_log_group_aws_tags_value_with_slash
       requests, _logs = run_with({"log_group_name_key" => "group", "log_stream_name" => "stream", "log_group_aws_tags" => '{"LogGroup": "${group}"}'}, "group",
                                  [{"group" => "/aws/lambda/foo", "message" => "message1"}])
