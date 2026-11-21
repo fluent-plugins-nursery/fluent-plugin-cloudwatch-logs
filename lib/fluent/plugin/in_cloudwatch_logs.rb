@@ -243,7 +243,9 @@ module Fluent::Plugin
           # The parser yields nil when the message does not match, for
           # example a regexp that does not match the line.
           next if record.nil?
-          if @use_aws_timestamp
+          # The parser gives a nil time when the message has no time and
+          # estimate_current_event is false, so use the time of the event.
+          if @use_aws_timestamp || time.nil?
             time = (event.timestamp / 1000).floor
           end
           if @add_log_group_name

@@ -715,6 +715,38 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["stream", "stream"], records[1..].map {|record| record["metadata"]["log_stream_name"] })
     end
 
+    test "emit with the event timestamp when the parser gives no time" do
+      time_ms = 1763000000123
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "level=info msg=x", ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms + 2000, message: "level=info msg=y", ingestion_time: time_ms),
+      ]
+      @client.stub_responses(:get_log_events, [
+        { events: cloudwatch_logs_events, next_forward_token: nil },
+        { events: [], next_forward_token: nil }
+      ])
+
+      d = create_driver(<<-EOC)
+        tag test
+        @type cloudwatch_logs
+        log_group_name group
+        log_stream_name stream
+        fetch_interval 1
+        region us-east-1
+        <parse>
+          @type regexp
+          expression /^level=(?<level>\\w+) msg=(?<msg>.*)$/
+          estimate_current_event false
+        </parse>
+      EOC
+      d.run(expect_emits: 2, timeout: 5)
+
+      assert_equal([
+        ["test", 1763000000, { "level" => "info", "msg" => "x" }],
+        ["test", 1763000002, { "level" => "info", "msg" => "y" }],
+      ], d.events)
+    end
+
     data("plain", "")
     data("add_log_group_name", "add_log_group_name true")
     data("include_metadata", "include_metadata true")
