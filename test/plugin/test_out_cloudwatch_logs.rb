@@ -22,6 +22,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         region us-east-1
         log_group_name test_group
         log_stream_name test_stream
+        auto_create_group false
         auto_create_stream false
         log_group_aws_tags { "tagkey": "tagvalue", "tagkey_2": "tagvalue_2"}
         retention_in_days 5
@@ -33,6 +34,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal('us-east-1', d.instance.region)
       assert_equal('test_group', d.instance.log_group_name)
       assert_equal('test_stream', d.instance.log_stream_name)
+      assert_equal(false, d.instance.auto_create_group)
       assert_equal(false, d.instance.auto_create_stream)
       assert_equal("tagvalue", d.instance.log_group_aws_tags.fetch("tagkey"))
       assert_equal("tagvalue_2", d.instance.log_group_aws_tags.fetch("tagkey_2"))
@@ -100,6 +102,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         new_log_stream
 
         config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_group' => true,
                   'auto_create_stream' => true,
                   'log_stream_name' => log_stream_name,
                   'log_group_name' => log_group_name,
@@ -145,6 +148,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         new_log_stream
 
         config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_group' => true,
                   'auto_create_stream' => true,
                   'log_stream_name' => log_stream_name,
                   'log_group_name' => log_group_name,
@@ -190,6 +194,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         new_log_stream
 
         config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_group' => true,
                   'auto_create_stream' => true,
                   'log_stream_name' => log_stream_name,
                   'log_group_name' => log_group_name,
@@ -386,6 +391,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       new_log_stream
 
       config = {'@type' => 'cloudwatch_logs',
+        'auto_create_group' => true,
         'auto_create_stream' => true,
         'message_keys' => ["message","cloudwatch"],
         'log_stream_name' => "${tag}",
@@ -424,6 +430,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       new_log_stream
 
       config = {'@type' => 'cloudwatch_logs',
+        'auto_create_group' => true,
         'auto_create_stream' => true,
         'message_keys' => ["message","cloudwatch"],
         'log_stream_name' => "${tag[0]}-${tag[1]}-${tag[2]}-${tag[3]}",
@@ -462,6 +469,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       new_log_stream
 
       config = {'@type' => 'cloudwatch_logs',
+        'auto_create_group' => true,
         'auto_create_stream' => true,
         'message_keys' => ["message","cloudwatch"],
         'log_stream_name' => "fluent-plugin-cloudwatch-test-%Y%m%d",
@@ -624,7 +632,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       d = create_driver(<<-EOC)
         #{default_config}
-        auto_create_stream true
+        auto_create_group true
         use_tag_as_stream true
         log_group_name_key group_name_key
         log_group_aws_tags {"tag1": "value1", "tag2": "value2"}
@@ -653,7 +661,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       config = {
         "@type" => "cloudwatch_logs",
-        "auto_create_stream" => true,
+        "auto_create_group" => true,
         "use_tag_as_stream" => true,
         "log_group_name_key" => "group_name_key",
         "log_group_aws_tags" => '{"tag1": "${tag}", "tag2": "${namespace_name}"}',
@@ -694,7 +702,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       d = create_driver(<<-EOC)
         #{default_config}
-        auto_create_stream true
+        auto_create_group true
         use_tag_as_stream true
         log_group_name_key group_name_key
         retention_in_days 7
@@ -722,7 +730,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       d = create_driver(<<-EOC)
         #{default_config}
-        auto_create_stream true
+        auto_create_group true
         use_tag_as_stream true
         log_group_name_key group_name_key
         retention_in_days 4
@@ -780,7 +788,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       d = create_driver(<<-EOC)
         #{default_config}
-        auto_create_stream true
+        auto_create_group true
         use_tag_as_stream true
         log_group_name_key group_name_key
         log_group_aws_tags_key aws_tags
@@ -840,7 +848,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       d = create_driver(<<-EOC)
         #{default_config}
-        auto_create_stream true
+        auto_create_group true
         use_tag_as_stream true
         log_group_name_key group_name_key
         log_group_aws_tags_key aws_tags
@@ -874,7 +882,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
       d = create_driver(<<-EOC)
         #{default_config}
-        auto_create_stream true
+        auto_create_group true
         log_group_name_key group_name_key
         log_stream_name_key stream_name_key
         remove_log_group_name_key true
@@ -1353,6 +1361,7 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
   def default_config
     <<-EOC
 @type cloudwatch_logs
+auto_create_group true
 auto_create_stream true
 #{aws_key_id}
 #{aws_sec_key}
