@@ -1303,11 +1303,16 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_false(logs.any? {|log| log.include?("Invalid path component") }, logs.join)
     end
 
-    def test_tag_parts_that_look_like_paths
-      requests, logs = run_with({"log_group_name" => "${tag[0]}/${tag[1]}", "log_stream_name" => "${tag[-1]}"}, "tag",
-                                [{"message" => "message1"}], tag: "/aws.lambda.c:app")
+    data("absolute path" => "/aws.lambda.foo",
+         "Windows drive" => "c:app.lambda.foo")
+    def test_tag_parts_that_look_like_paths(tag)
+      requests, logs = run_with({"log_group_name" => "/app/${tag[1]}", "log_stream_name" => "${tag[-1]}",
+                                 "log_group_aws_tags" => '{"Source": "${tag}"}'}, "tag",
+                                [{"message" => "message1"}], tag: tag)
       put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
-      assert_equal([["/aws/lambda", "c:app"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      assert_equal([["/app/lambda", "foo"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      create_requests = requests.select {|r| r[:operation_name] == :create_log_group }
+      assert_equal([{"Source" => tag}], create_requests.map {|r| r[:params][:tags] })
       assert_false(logs.any? {|log| log.include?("Invalid path component") }, logs.join)
     end
 
@@ -1318,12 +1323,23 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal([["/aws.lambda//var/log", "2026-lambda"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
     end
 
-    def test_tag_index_out_of_range_warns_and_is_kept
+    data("a tag that looks like a path" => ["/aws/lambda/foo", "/aws/lambda/foo-"],
+         "a tag that does not" => ["app.web", "app.web-"])
+    def test_tag_index_out_of_range_is_removed(data)
+      tag, group = data
       requests, logs = run_with({"log_group_name" => "${tag}-${tag[5]}", "log_stream_name" => "stream"}, "tag",
-                                [{"message" => "message1"}], tag: "/aws/lambda/foo")
+                                [{"message" => "message1"}], tag: tag)
       put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
-      assert_equal(["/aws/lambda/foo-${tag[5]}"], put_requests.map {|r| r[:params][:log_group_name] })
-      assert_true(logs.any? {|log| log.include?("tag placeholder 'tag[5]' not replaced. tag:/aws/lambda/foo, template:${tag}-${tag[5]}") }, logs.join)
+      assert_equal([group], put_requests.map {|r| r[:params][:log_group_name] })
+      assert_false(logs.any? {|log| log.include?("not replaced") }, logs.join)
+    end
+
+    def test_tag_with_invalid_utf8_and_names_without_tag
+      requests, logs = run_with({"log_group_name" => "group", "log_stream_name" => "stream"}, "tag",
+                                [{"message" => "message1"}], tag: "app.\xFF")
+      put_requests = requests.select {|r| r[:operation_name] == :put_log_events }
+      assert_equal([["group", "stream"]], put_requests.map {|r| r[:params].values_at(:log_group_name, :log_stream_name) })
+      assert_false(logs.any? {|log| log.include?("invalid byte sequence") }, logs.join)
     end
 
     def test_log_group_aws_tags_value_with_slash

@@ -356,7 +356,7 @@ module Fluent::Plugin
     # left to it. The same check applies to the tag in ${tag} and ${tag[n]}.
     def extract_name_placeholders(str, chunk)
       variables = chunk.metadata.variables
-      tag = chunk.metadata.tag if @chunk_key_tag
+      tag = chunk.metadata.tag if @chunk_key_tag && CHUNK_TAG_PLACEHOLDER_PATTERN.match?(str)
       return extract_placeholders(str, chunk) if tag.nil? && (variables.nil? || variables.empty?)
 
       values = []
@@ -369,11 +369,8 @@ module Fluent::Plugin
           tag_values["${tag[#{i - tag_parts.size}]}"] = part
         end
         template = template.gsub(CHUNK_TAG_PLACEHOLDER_PATTERN) do |matched|
-          name = $1
-          values << tag_values.fetch(matched) do
-            log.warn "tag placeholder '#{name}' not replaced. tag:#{tag}, template:#{str}"
-            matched
-          end
+          # Fluentd replaces an index out of range with an empty string.
+          values << tag_values.fetch(matched, "")
           NAME_PLACEHOLDER_TOKEN % (values.size - 1)
         end
       end
