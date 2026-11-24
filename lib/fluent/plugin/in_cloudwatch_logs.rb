@@ -245,7 +245,8 @@ module Fluent::Plugin
           next if record.nil?
           # The parser gives a nil time when the message has no time and
           # estimate_current_event is false, so use the time of the event.
-          if @use_aws_timestamp || time.nil?
+          time ||= Fluent::EventTime.new(event.timestamp / 1000)
+          if @use_aws_timestamp
             time = (event.timestamp / 1000).floor
           end
           if @add_log_group_name

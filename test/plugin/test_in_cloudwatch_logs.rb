@@ -745,6 +745,7 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
         ["test", 1763000000, { "level" => "info", "msg" => "x" }],
         ["test", 1763000002, { "level" => "info", "msg" => "y" }],
       ], d.events)
+      d.events.each {|_tag, time, _record| assert_instance_of(Fluent::EventTime, time) }
     end
 
     data("plain", "")
