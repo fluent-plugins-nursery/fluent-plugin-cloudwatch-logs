@@ -352,22 +352,39 @@ module Fluent::Plugin
     # when a chunk key value looks like an absolute or parent file path, such
     # as "/aws/lambda/foo". That check is for file outputs: log group and
     # stream names often start with "/". So the chunk key values are put in
-    # after extract_placeholders, and only ${tag}, ${chunk_id} and the time
-    # format are left to it.
+    # after extract_placeholders, and only ${chunk_id} and the time format are
+    # left to it. The same check applies to the tag in ${tag} and ${tag[n]}.
     def extract_name_placeholders(str, chunk)
       variables = chunk.metadata.variables
-      return extract_placeholders(str, chunk) if variables.nil? || variables.empty?
+      tag = chunk.metadata.tag if @chunk_key_tag && CHUNK_TAG_PLACEHOLDER_PATTERN.match?(str)
+      return extract_placeholders(str, chunk) if tag.nil? && (variables.nil? || variables.empty?)
 
       values = []
-      template = str.gsub(CHUNK_KEY_PLACEHOLDER_PATTERN) do |matched|
-        key = $1
-        next matched if key == "tag" || key == "chunk_id"
-        unless @chunk_keys.include?(key)
-          log.warn "chunk key placeholder '#{key}' not replaced. template:#{str}"
-          next ""
+      template = str
+      if tag
+        tag_values = {"${tag}" => tag}
+        tag_parts = tag.split(".")
+        tag_parts.each_with_index do |part, i|
+          tag_values["${tag[#{i}]}"] = part
+          tag_values["${tag[#{i - tag_parts.size}]}"] = part
         end
-        values << variables[key.to_sym].to_s
-        NAME_PLACEHOLDER_TOKEN % (values.size - 1)
+        template = template.gsub(CHUNK_TAG_PLACEHOLDER_PATTERN) do |matched|
+          # Fluentd replaces an index out of range with an empty string.
+          values << tag_values.fetch(matched, "")
+          NAME_PLACEHOLDER_TOKEN % (values.size - 1)
+        end
+      end
+      if variables && !variables.empty?
+        template = template.gsub(CHUNK_KEY_PLACEHOLDER_PATTERN) do |matched|
+          key = $1
+          next matched if key == "tag" || key == "chunk_id"
+          unless @chunk_keys.include?(key)
+            log.warn "chunk key placeholder '#{key}' not replaced. template:#{str}"
+            next ""
+          end
+          values << variables[key.to_sym].to_s
+          NAME_PLACEHOLDER_TOKEN % (values.size - 1)
+        end
       end
       if !@chunk_key_tag && !values.empty? && template.include?("${tag}")
         # Fluentd keeps ${tag} and warns once with the template it was given,
