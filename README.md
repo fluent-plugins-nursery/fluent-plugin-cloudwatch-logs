@@ -286,7 +286,7 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `tag`: fluentd tag
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
-* `use_aws_timestamp`: get timestamp from Cloudwatch event for non json logs, otherwise fluentd will parse the log to get the timestamp (default `false`)
+* `use_aws_timestamp`: get timestamp from Cloudwatch event for non json logs, otherwise fluentd will parse the log to get the timestamp (default `false`). When the parser returns a record without a time (for example with `estimate_current_event false` in `<parse>`), the CloudWatch timestamp is used, in whole seconds.
 * `start_time`: specify starting time range for obtaining logs. (default: `nil`)
 * `end_time`: specify ending time range for obtaining logs. (default: `nil`)
 * `time_range_format`: specify time format for time range. (default: `%Y-%m-%d %H:%M:%S`)
