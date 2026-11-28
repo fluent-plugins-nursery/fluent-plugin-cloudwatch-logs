@@ -264,6 +264,8 @@ module Fluent::Plugin
             else
               awstags = record[@log_group_aws_tags_key]
             end
+            # CreateLogGroup only accepts String tags, as for log_group_aws_tags
+            awstags = awstags.to_h {|k, v| [k.to_s, v.to_s] } if awstags.is_a?(Hash)
           end
 
           retention_in_days = @retention_in_days

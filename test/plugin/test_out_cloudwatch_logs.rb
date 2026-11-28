@@ -1349,6 +1349,44 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "log_group_aws_tags_key" do
+    def run_with_record_tags(tags, remove: false)
+      client = Aws::CloudWatchLogs::Client.new(
+        stub_responses: true,
+        region: "us-east-1",
+        credentials: Aws::Credentials.new("test_id", "test_key"),
+      )
+      d = create_driver(<<-EOC)
+        @type cloudwatch_logs
+        region us-east-1
+        aws_key_id test_id
+        aws_sec_key test_key
+        auto_create_stream true
+        log_group_name test_group
+        log_stream_name test_stream
+        log_group_aws_tags_key tags
+        remove_log_group_aws_tags_key #{remove}
+      EOC
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: "test") do
+        d.feed(event_time, {"tags" => tags, "message" => "message1"})
+      end
+      requests = client.api_requests
+      [
+        requests.select {|r| r[:operation_name] == :create_log_group }.map {|r| r[:params][:tags] },
+        requests.count {|r| r[:operation_name] == :put_log_events },
+      ]
+    end
+
+    data("kept in the record", false)
+    data("removed from the record", true)
+    def test_non_string_tags_are_sent_as_strings(remove)
+      created, puts = run_with_record_tags({"team" => "web", "cost_center" => 1234, "enabled" => true}, remove: remove)
+      assert_equal([{"team" => "web", "cost_center" => "1234", "enabled" => "true"}], created)
+      assert_equal(1, puts)
+    end
+  end
+
   private
   def default_config
     <<-EOC
