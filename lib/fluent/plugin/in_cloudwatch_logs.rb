@@ -239,51 +239,68 @@ module Fluent::Plugin
 
     def emit(group, stream, event, metadata)
       if @parser
-        @parser.parse(event.message) {|time,record|
-          # The parser yields nil when the message does not match, for
-          # example a regexp that does not match the line.
-          next if record.nil?
-          # The parser gives a nil time when the message has no time and
-          # estimate_current_event is false, so use the time of the event.
-          time ||= Fluent::EventTime.new(event.timestamp / 1000)
-          if @use_aws_timestamp
-            time = (event.timestamp / 1000).floor
-          end
-          if @add_log_group_name
-            record[@log_group_name_key] = group
-          end
-          unless metadata.empty?
-            # Each event gets its own copy, so that a filter changing the
-            # metadata of one event does not change the other events.
-            record.merge!("metadata" => metadata.dup)
-          end
-          router.emit(@tag, time, record)
-        }
+        begin
+          @parser.parse(event.message) {|time,record|
+            # The parser yields nil when the message does not match, for
+            # example a regexp that does not match the line.
+            next if record.nil?
+            # The parser gives a nil time when the message has no time and
+            # estimate_current_event is false, so use the time of the event.
+            time ||= Fluent::EventTime.new(event.timestamp / 1000)
+            if @use_aws_timestamp
+              time = (event.timestamp / 1000).floor
+            end
+            if @add_log_group_name
+              record[@log_group_name_key] = group
+            end
+            unless metadata.empty?
+              # Each event gets its own copy, so that a filter changing the
+              # metadata of one event does not change the other events.
+              record.merge!("metadata" => metadata.dup)
+            end
+            emit_record(time, record)
+          }
+        rescue => error
+          # An error here would end the runner thread and the whole worker,
+          # e.g. a time that does not match time_format.
+          log.warn "failed to parse event.message", error: error
+          router.emit_error_event(@tag, (event.timestamp / 1000).floor, { "message" => event.message }, error)
+        end
       else
         time = (event.timestamp / 1000).floor
         begin
           record = JSON.parse(event.message, allow_duplicate_key: true)
-          # A JSON value such as null, 42 or [1,2] is valid JSON but not a
-          # record, so handle it like invalid JSON.
-          unless record.is_a?(Hash)
-            log.error "event.message is not a JSON object"
-            router.emit_error_event(@tag, time, { "message" => event.message }, TypeError.new("event.message is not a JSON object: #{record.class}"))
-            return
-          end
-          if @add_log_group_name
-            record[@log_group_name_key] = group
-          end
-          unless metadata.empty?
-            # Each event gets its own copy, so that a filter changing the
-            # metadata of one event does not change the other events.
-            record.merge!("metadata" => metadata.dup)
-          end
-          router.emit(@tag, time, record)
         rescue JSON::ParserError => error # Catch parser errors
           log.error "Invalid JSON encountered while parsing event.message"
           router.emit_error_event(@tag, time, { message: event.message }, error)
+          return
         end
+        # A JSON value such as null, 42 or [1,2] is valid JSON but not a
+        # record, so handle it like invalid JSON.
+        unless record.is_a?(Hash)
+          log.error "event.message is not a JSON object"
+          router.emit_error_event(@tag, time, { "message" => event.message }, TypeError.new("event.message is not a JSON object: #{record.class}"))
+          return
+        end
+        if @add_log_group_name
+          record[@log_group_name_key] = group
+        end
+        unless metadata.empty?
+          # Each event gets its own copy, so that a filter changing the
+          # metadata of one event does not change the other events.
+          record.merge!("metadata" => metadata.dup)
+        end
+        emit_record(time, record)
       end
+    end
+
+    # Without <label @ERROR>, Fluentd raises the error of an output back to
+    # the input. Log it and go on with the next event, as in_syslog does,
+    # instead of ending the runner thread and the whole worker.
+    def emit_record(time, record)
+      router.emit(@tag, time, record)
+    rescue => error
+      log.error "failed to emit an event", error: error, tag: @tag
     end
 
     def get_events(log_group_name, log_stream_name)

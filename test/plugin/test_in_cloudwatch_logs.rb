@@ -748,6 +748,66 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       d.events.each {|_tag, time, _record| assert_instance_of(Fluent::EventTime, time) }
     end
 
+    test "send a message the parser rejects to the error stream and emit the next one" do
+      time_ms = 1763000000123
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "time=bad level=info msg=x", ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: "time=2026-11-13 level=info msg=ok", ingestion_time: time_ms),
+      ]
+      @client.stub_responses(:get_log_events, [
+        { events: cloudwatch_logs_events, next_forward_token: nil },
+        { events: [], next_forward_token: nil }
+      ])
+
+      d = create_driver(<<-EOC)
+        tag test
+        @type cloudwatch_logs
+        log_group_name group
+        log_stream_name stream
+        fetch_interval 1
+        region us-east-1
+        <parse>
+          @type regexp
+          expression /^time=(?<time>\\S+) level=(?<level>\\w+) msg=(?<msg>.*)$/
+          time_key time
+          time_format %Y-%m-%d
+        </parse>
+      EOC
+      d.run(expect_emits: 1, timeout: 5)
+
+      assert_equal([{ "level" => "info", "msg" => "ok" }], d.events.map {|_tag, _time, record| record })
+      assert_equal(["time=bad level=info msg=x"], d.error_events.map {|_tag, _time, record| record["message"] })
+      assert_instance_of(Fluent::Plugin::Parser::ParserError, d.error_events[0][3])
+    end
+
+    data("JSON::ParserError", JSON::ParserError)
+    data("RuntimeError", RuntimeError)
+    test "log an error raised back by an output and emit the next event" do |error_class|
+      time_ms = (Time.now.to_f * 1000).floor
+      cloudwatch_logs_events = [
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: { cloudwatch: "logs1" }.to_json, ingestion_time: time_ms),
+        Aws::CloudWatchLogs::Types::OutputLogEvent.new(timestamp: time_ms, message: { cloudwatch: "logs2" }.to_json, ingestion_time: time_ms),
+      ]
+      @client.stub_responses(:get_log_events, [
+        { events: cloudwatch_logs_events, next_forward_token: nil },
+        { events: [], next_forward_token: nil }
+      ])
+
+      d = create_driver
+      router = d.instance.router
+      original_emit = router.method(:emit)
+      stub(router).emit do |tag, time, record|
+        raise error_class, "raised by the output" if record["cloudwatch"] == "logs1"
+        original_emit.call(tag, time, record)
+      end
+      d.run(expect_emits: 1, timeout: 5)
+
+      assert_equal(["logs2"], d.events.map {|_tag, _time, record| record["cloudwatch"] })
+      assert_equal([], d.error_events)
+      assert(d.logs.any? {|log| log.include?("failed to emit an event") && log.include?("raised by the output") })
+      assert(d.logs.none? {|log| log.include?("Invalid JSON") })
+    end
+
     data("plain", "")
     data("add_log_group_name", "add_log_group_name true")
     data("include_metadata", "include_metadata true")
